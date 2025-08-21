@@ -37,7 +37,7 @@ class UI:
         # Main HUD
         self.render_health_bar(player)
         self.render_xp_bar(player)
-        self.render_level_info(player)
+        self.render_level_info(level)
         self.render_stats_panel(player, level)
         
         # Minimap
@@ -404,7 +404,9 @@ class UI:
         self.draw_panel(x - 5, y - 5, panel_width, panel_height)
         
         # Level number
-        level_text = f"Level {level.player_level}/10"
+        current_level = getattr(level, 'current_game_level', 1)
+        max_level = getattr(level, 'max_game_level', 10)
+        level_text = f"Level {current_level}/{max_level}"
         level_surface = self.asset_manager.render_text(level_text, "medium", self.text_color)
         self.screen.blit(level_surface, (x, y))
         

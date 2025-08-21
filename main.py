@@ -169,7 +169,9 @@ class Game:
         # Render items
         self.level.item_manager.render_items(self.screen, camera_x, camera_y, self.asset_manager)
         
-        # Render UI (health, XP, level, etc.)
+        # Render UI (health, XP, level, etc.) - pass current game level to UI
+        self.level.current_game_level = self.current_level
+        self.level.max_game_level = self.max_level
         self.ui.render(self.player, self.level, self.visibility_system)
         
         # Render pause overlay if paused
