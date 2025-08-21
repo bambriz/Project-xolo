@@ -8,6 +8,7 @@ import random
 import math
 from typing import Tuple, List, Set
 from enemy import create_enemy
+from boss import Boss
 from items import ItemManager
 
 class Tile:
@@ -45,10 +46,23 @@ class Level:
         # Enemy management
         self.enemies = []
         self.max_enemies = 8 + player_level * 2
+        self.boss = None
+        
+        # Level progression items
+        self.key_position = None
+        self.altar_position = None
+        self.key_collected = False
+        self.level_complete = False
+        
+        # Boss projectiles and effects
+        self.boss_projectiles = []
+        self.boss_effects = []
         
         # Generate the level
         self.generate_level()
         self.spawn_enemies()
+        self.spawn_boss()
+        self.place_key_and_altar()
         
         # Initialize item management
         self.item_manager = ItemManager(self)
@@ -311,3 +325,248 @@ class Level:
                                                                         world_y + self.tile_size // 2)):
                     pygame.draw.rect(screen, (80, 80, 80), 
                                    (screen_x, screen_y, self.tile_size, self.tile_size), 1)
+        
+        # Render key if not collected
+        if not self.key_collected and self.key_position:
+            if visibility_system.is_visible(self.key_position):
+                screen_x = int(self.key_position[0] + camera_x)
+                screen_y = int(self.key_position[1] + camera_y)
+                
+                # Draw key as a golden diamond
+                key_points = [
+                    (screen_x, screen_y - 15),
+                    (screen_x + 10, screen_y),
+                    (screen_x, screen_y + 15),
+                    (screen_x - 10, screen_y)
+                ]
+                pygame.draw.polygon(screen, (255, 215, 0), key_points)  # Gold
+                pygame.draw.polygon(screen, (255, 255, 255), key_points, 2)  # White outline
+        
+        # Render altar
+        if self.altar_position:
+            if visibility_system.is_visible(self.altar_position):
+                screen_x = int(self.altar_position[0] + camera_x)
+                screen_y = int(self.altar_position[1] + camera_y)
+                
+                # Draw altar as a stone platform
+                altar_color = (100, 255, 100) if self.key_collected else (100, 100, 100)
+                pygame.draw.rect(screen, altar_color, (screen_x - 20, screen_y - 15, 40, 30))
+                pygame.draw.rect(screen, (200, 200, 200), (screen_x - 20, screen_y - 15, 40, 30), 3)
+                
+                # Draw glowing effect if ready
+                if self.key_collected:
+                    pygame.draw.circle(screen, (255, 255, 255, 100), (screen_x, screen_y), 35, 2)
+        
+        # Render boss projectiles
+        for projectile in self.boss_projectiles:
+            if visibility_system.is_visible(projectile['position']):
+                screen_x = int(projectile['position'][0] + camera_x)
+                screen_y = int(projectile['position'][1] + camera_y)
+                
+                # Different colors for different projectile types
+                colors = {
+                    'fire_spin': (255, 100, 0),
+                    'ice_shard': (100, 200, 255),
+                    'shadow_bolt': (150, 0, 150)
+                }
+                color = colors.get(projectile['type'], (255, 255, 255))
+                pygame.draw.circle(screen, color, (screen_x, screen_y), 6)
+        
+        # Render boss effects
+        for effect in self.boss_effects:
+            if visibility_system.is_visible(effect['position']):
+                screen_x = int(effect['position'][0] + camera_x)
+                screen_y = int(effect['position'][1] + camera_y)
+                
+                if effect['type'] == 'frost_nova':
+                    # Draw expanding frost circle
+                    pygame.draw.circle(screen, (100, 200, 255), (screen_x, screen_y), effect['radius'], 3)
+                
+                elif effect['type'] == 'lightning_bolt':
+                    # Draw lightning line
+                    end_x = int(effect['end_pos'][0] + camera_x)
+                    end_y = int(effect['end_pos'][1] + camera_y)
+                    pygame.draw.line(screen, (255, 255, 100), (screen_x, screen_y), (end_x, end_y), 4)
+                
+                elif effect['type'] == 'dark_storm':
+                    # Draw swirling dark energy
+                    pygame.draw.circle(screen, (80, 0, 150), (screen_x, screen_y), effect['radius'], 2)
+                    pygame.draw.circle(screen, (150, 0, 200), (screen_x, screen_y), effect['radius'] // 2, 1)
+    
+    def spawn_boss(self):
+        """Spawn the level boss in a suitable location."""
+        floor_tiles = []
+        
+        # Find all floor tiles
+        for y in range(self.height):
+            for x in range(self.width):
+                if self.tiles[y][x].type == "floor":
+                    floor_tiles.append((x, y))
+        
+        # Find a good boss spawn location (furthest from player spawn)
+        best_distance = 0
+        best_position = None
+        
+        for tile_x, tile_y in floor_tiles:
+            world_x = tile_x * self.tile_size + self.tile_size // 2
+            world_y = tile_y * self.tile_size + self.tile_size // 2
+            
+            distance = math.sqrt(
+                (world_x - self.spawn_position[0])**2 + 
+                (world_y - self.spawn_position[1])**2
+            )
+            
+            if distance > best_distance:
+                best_distance = distance
+                best_position = (world_x, world_y)
+        
+        if best_position:
+            self.boss = Boss(best_position, self.player_level)
+            print(f"Spawned boss at distance {best_distance:.1f} from player")
+    
+    def place_key_and_altar(self):
+        """Place the key and altar for level progression."""
+        floor_tiles = []
+        
+        # Find all floor tiles
+        for y in range(self.height):
+            for x in range(self.width):
+                if self.tiles[y][x].type == "floor":
+                    floor_tiles.append((x, y))
+        
+        if len(floor_tiles) >= 2:
+            # Shuffle and pick two different locations
+            random.shuffle(floor_tiles)
+            
+            # Key position (random floor tile)
+            key_tile = floor_tiles[0]
+            self.key_position = (
+                key_tile[0] * self.tile_size + self.tile_size // 2,
+                key_tile[1] * self.tile_size + self.tile_size // 2
+            )
+            
+            # Altar position (different from key)
+            altar_tile = floor_tiles[1]
+            self.altar_position = (
+                altar_tile[0] * self.tile_size + self.tile_size // 2,
+                altar_tile[1] * self.tile_size + self.tile_size // 2
+            )
+            
+            print(f"Placed key at {self.key_position} and altar at {self.altar_position}")
+    
+    def update_boss_projectiles(self, dt: float, player):
+        """Update boss projectiles and effects."""
+        current_time = pygame.time.get_ticks() / 1000.0
+        
+        # Update projectiles
+        for projectile in self.boss_projectiles[:]:
+            projectile['lifetime'] -= dt
+            
+            if projectile['lifetime'] <= 0:
+                self.boss_projectiles.remove(projectile)
+                continue
+            
+            # Update position based on type
+            if projectile.get('homing'):
+                # Homing projectile (shadow bolt)
+                dx = player.position[0] - projectile['position'][0]
+                dy = player.position[1] - projectile['position'][1]
+                distance = math.sqrt(dx * dx + dy * dy)
+                
+                if distance > 0:
+                    speed = 120
+                    projectile['velocity'][0] = (dx / distance) * speed
+                    projectile['velocity'][1] = (dy / distance) * speed
+            
+            # Move projectile
+            projectile['position'][0] += projectile['velocity'][0] * dt
+            projectile['position'][1] += projectile['velocity'][1] * dt
+            
+            # Check collision with player
+            dx = player.position[0] - projectile['position'][0]
+            dy = player.position[1] - projectile['position'][1]
+            distance = math.sqrt(dx * dx + dy * dy)
+            
+            if distance <= player.radius + 8:  # Projectile hit radius
+                player.take_damage(projectile['damage'])
+                self.boss_projectiles.remove(projectile)
+        
+        # Update effects
+        for effect in self.boss_effects[:]:
+            effect['lifetime'] -= dt
+            
+            if effect['lifetime'] <= 0:
+                self.boss_effects.remove(effect)
+                continue
+            
+            # Handle different effect types
+            if effect['type'] == 'frost_nova':
+                # Expanding frost nova
+                progress = 1.0 - (effect['lifetime'] / 2.0)  # 2.0 is max lifetime
+                effect['radius'] = int(effect['max_radius'] * progress)
+                
+                # Check collision with player
+                dx = player.position[0] - effect['position'][0]
+                dy = player.position[1] - effect['position'][1]
+                distance = math.sqrt(dx * dx + dy * dy)
+                
+                if distance <= effect['radius'] + player.radius:
+                    player.take_damage(effect['damage'])
+                    effect['lifetime'] = 0  # Remove after hitting
+            
+            elif effect['type'] == 'lightning_bolt':
+                # Instant damage on creation, just visual effect now
+                if current_time - effect['created_time'] < 0.1:  # Hit within 0.1 seconds
+                    dx = player.position[0] - effect['end_pos'][0]
+                    dy = player.position[1] - effect['end_pos'][1]
+                    distance = math.sqrt(dx * dx + dy * dy)
+                    
+                    if distance <= player.radius + 20:  # Lightning hit radius
+                        player.take_damage(effect['damage'])
+            
+            elif effect['type'] == 'dark_storm':
+                # Continuous damage in area
+                dx = player.position[0] - effect['position'][0]
+                dy = player.position[1] - effect['position'][1]
+                distance = math.sqrt(dx * dx + dy * dy)
+                
+                if distance <= effect['radius']:
+                    # Damage every 0.5 seconds
+                    if int(current_time * 2) != int((current_time - dt) * 2):
+                        player.take_damage(effect['damage'])
+    
+    def check_key_collection(self, player) -> bool:
+        """Check if player collected the key."""
+        if not self.key_collected and self.key_position:
+            dx = player.position[0] - self.key_position[0]
+            dy = player.position[1] - self.key_position[1]
+            distance = math.sqrt(dx * dx + dy * dy)
+            
+            if distance <= player.radius + 20:
+                self.key_collected = True
+                print("Key collected! Defeat the boss and find the altar to advance.")
+                return True
+        return False
+    
+    def check_altar_activation(self, player) -> bool:
+        """Check if player can activate the altar to complete the level."""
+        if self.key_collected and not self.level_complete and self.altar_position:
+            # Only allow altar activation if boss is defeated
+            if self.boss and self.boss.is_alive():
+                return False
+            
+            dx = player.position[0] - self.altar_position[0]
+            dy = player.position[1] - self.altar_position[1]
+            distance = math.sqrt(dx * dx + dy * dy)
+            
+            if distance <= player.radius + 25:
+                self.level_complete = True
+                print("Level completed! Altar activated.")
+                return True
+        return False
+    
+    def all_enemies_defeated(self) -> bool:
+        """Check if all enemies including boss are defeated."""
+        alive_enemies = sum(1 for enemy in self.enemies if enemy.is_alive())
+        boss_alive = self.boss and self.boss.is_alive()
+        return alive_enemies == 0 and not boss_alive

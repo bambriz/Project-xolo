@@ -392,3 +392,40 @@ class UI:
             
         spell_surface = self.asset_manager.render_text(spell_text, "small", color)
         self.screen.blit(spell_surface, (x, current_y))
+    
+    def render_level_info(self, level):
+        """Render current level information."""
+        x = self.screen_width - 150
+        y = self.margin
+        
+        # Background panel
+        panel_width = 130
+        panel_height = 60
+        self.draw_panel(x - 5, y - 5, panel_width, panel_height)
+        
+        # Level number
+        level_text = f"Level {level.player_level}/10"
+        level_surface = self.asset_manager.render_text(level_text, "medium", self.text_color)
+        self.screen.blit(level_surface, (x, y))
+        
+        # Key status
+        key_text = "Key: " + ("✓" if level.key_collected else "✗")
+        key_color = (100, 255, 100) if level.key_collected else (255, 100, 100)
+        key_surface = self.asset_manager.render_text(key_text, "small", key_color)
+        self.screen.blit(key_surface, (x, y + 25))
+        
+        # Boss status
+        boss_text = "Boss: "
+        if level.boss:
+            if level.boss.is_alive():
+                boss_text += "Alive"
+                boss_color = (255, 100, 100)
+            else:
+                boss_text += "Dead"
+                boss_color = (100, 255, 100)
+        else:
+            boss_text += "None"
+            boss_color = (150, 150, 150)
+        
+        boss_surface = self.asset_manager.render_text(boss_text, "small", boss_color)
+        self.screen.blit(boss_surface, (x, y + 40))

@@ -13,6 +13,7 @@ from level import Level
 from ui import UI
 from assets import AssetManager
 from visibility import VisibilitySystem
+from sound_manager import SoundManager
 
 # Game constants
 SCREEN_WIDTH = 1024
@@ -35,10 +36,18 @@ class Game:
         # Initialize game systems
         self.asset_manager = AssetManager()
         self.game_state = GameState()
-        self.level = Level(50, 40)  # 50x40 tile dungeon
+        self.sound_manager = SoundManager()
+        
+        # Initialize first level
+        self.current_level = 1
+        self.max_level = 10
+        self.level = Level(30 + self.current_level * 3, 25 + self.current_level * 2, self.current_level)
         self.player = Player(self.level.get_spawn_position())
         self.visibility_system = VisibilitySystem(self.level)
         self.ui = UI(self.screen, self.asset_manager)
+        
+        # Start background music
+        self.sound_manager.play_music(self.sound_manager.get_music_for_level(self.current_level))
         
         # Game state
         self.running = True
@@ -86,8 +95,28 @@ class Game:
                 )
                 enemy.update(dt, self.player, self.level, can_see_player)
         
+        # Update boss if it exists
+        if self.level.boss and self.level.boss.is_alive():
+            can_see_player = self.visibility_system.has_line_of_sight(
+                (self.level.boss.position[0], self.level.boss.position[1]), 
+                (self.player.position[0], self.player.position[1])
+            )
+            self.level.boss.update(dt, self.player, self.level, can_see_player)
+        
         # Update projectiles
         self.player.combat_system.update_projectiles(dt, self.level)
+        
+        # Update boss projectiles and effects
+        self.level.update_boss_projectiles(dt, self.player)
+        
+        # Check key collection
+        if self.level.check_key_collection(self.player):
+            self.sound_manager.play_sound('key_pickup')
+        
+        # Check altar activation for level progression
+        if self.level.check_altar_activation(self.player):
+            self.sound_manager.play_sound('altar_activate')
+            self.advance_to_next_level()
         
         # Remove dead enemies and award XP
         for enemy in self.level.enemies[:]:  # Create a copy to iterate over
@@ -95,11 +124,17 @@ class Game:
                 xp_gained = enemy.xp_value
                 self.player.gain_xp(xp_gained)
                 self.level.enemies.remove(enemy)
+                self.sound_manager.play_sound('enemy_death')
                 print(f"Enemy defeated! Gained {xp_gained} XP")
         
-        # Check for level completion (all enemies defeated)
-        if not self.level.enemies:
-            self.generate_new_level()
+        # Check if boss is defeated
+        if self.level.boss and not self.level.boss.is_alive():
+            if hasattr(self.level.boss, 'death_processed') and not self.level.boss.death_processed:
+                xp_gained = self.level.boss.xp_value
+                self.player.gain_xp(xp_gained)
+                self.sound_manager.play_sound('boss_death')
+                self.level.boss.death_processed = True  # Prevent multiple XP gains
+                print(f"Boss defeated! Gained {xp_gained} XP")
     
     def render(self):
         """Render all game objects to the screen."""
@@ -120,6 +155,10 @@ class Game:
         for enemy in self.level.enemies:
             if self.visibility_system.is_visible(enemy.position):
                 enemy.render(self.screen, camera_x, camera_y, self.asset_manager)
+        
+        # Render boss (only if visible)
+        if self.level.boss and self.visibility_system.is_visible(self.level.boss.position):
+            self.level.boss.render(self.screen, camera_x, camera_y, self.asset_manager)
         
         # Render player
         self.player.render(self.screen, camera_x, camera_y, self.asset_manager)
@@ -157,18 +196,54 @@ class Game:
         text_small_rect = text_small.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 50))
         self.screen.blit(text_small, text_small_rect)
     
-    def generate_new_level(self):
-        """Generate a new level with scaled enemies."""
-        print(f"Level complete! Generating new level for player level {self.player.level}")
-        self.level = Level(50, 40, self.player.level)
-        self.player.position = list(self.level.get_spawn_position())
+    def advance_to_next_level(self):
+        """Advance to the next level."""
+        self.current_level += 1
+        
+        if self.current_level > self.max_level:
+            # Game completed!
+            self.sound_manager.play_music('victory_music', loop=False)
+            print("🎉 CONGRATULATIONS! You completed all 10 levels! 🎉")
+            print("You are the ultimate dungeon crawler champion!")
+            return
+        
+        # Create new level with increasing difficulty
+        width = 30 + self.current_level * 3
+        height = 25 + self.current_level * 2
+        
+        # Create new level
+        self.level = Level(width, height, self.current_level)
+        
+        # Reset player position but keep stats
+        spawn_pos = self.level.get_spawn_position()
+        self.player.position = list(spawn_pos)
+        
+        # Update visibility system for new level
         self.visibility_system = VisibilitySystem(self.level)
+        
+        # Play appropriate music for new level
+        self.sound_manager.play_music(self.sound_manager.get_music_for_level(self.current_level))
+        
+        # Track level completion
+        self.game_state.levels_completed.append({
+            'level': self.current_level - 1,
+            'completion_time': self.game_state.total_play_time
+        })
+        
+        print(f"Advanced to level {self.current_level}/{self.max_level} - Size: {width}x{height}")
+        
+        # Play boss spawn sound if this is a boss level
+        if self.current_level % 3 == 0 or self.current_level == 10:
+            self.sound_manager.play_sound('boss_spawn')
     
     def restart_game(self):
         """Restart the game from the beginning."""
-        self.level = Level(50, 40)
+        self.current_level = 1
+        self.level = Level(30 + self.current_level * 3, 25 + self.current_level * 2, self.current_level)
         self.player = Player(self.level.get_spawn_position())
         self.visibility_system = VisibilitySystem(self.level)
+        self.game_state = GameState()
+        self.sound_manager.play_music(self.sound_manager.get_music_for_level(self.current_level))
         print("Game restarted!")
     
     def run(self):
