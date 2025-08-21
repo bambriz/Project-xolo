@@ -149,7 +149,7 @@ class Game:
         self.visibility_system.update_visibility((self.player.position[0], self.player.position[1]))
         
         # Render level (walls, floors, etc.)
-        self.level.render(self.screen, camera_x, camera_y, self.visibility_system)
+        self.level.render(self.screen, camera_x, camera_y, self.visibility_system, self.player)
         
         # Render enemies (only if visible)
         for enemy in self.level.enemies:

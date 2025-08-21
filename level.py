@@ -196,9 +196,13 @@ class Level:
                 if self.tiles[y][x].type == "floor":
                     floor_tiles.append((x, y))
         
-        # Spawn enemies
+        # Spawn enemies with new types including a mobile ranged attacker
         spawn_attempts = 0
         max_spawn_attempts = 200
+        
+        # Define enemy types including new mobile ranged type
+        enemy_types = ["basic", "fast", "heavy", "mobile_ranged"]
+        enemy_weights = [3, 2, 2, 1]  # Basic most common, mobile_ranged least common
         
         while len(self.enemies) < self.max_enemies and spawn_attempts < max_spawn_attempts:
             spawn_attempts += 1
@@ -278,7 +282,7 @@ class Level:
             return self.tiles[tile_y][tile_x].type == "floor"
         return False
     
-    def render(self, screen: pygame.Surface, camera_x: int, camera_y: int, visibility_system):
+    def render(self, screen: pygame.Surface, camera_x: int, camera_y: int, visibility_system, player=None):
         """Render the level to the screen."""
         # Calculate which tiles are visible on screen
         screen_width, screen_height = screen.get_size()
@@ -376,9 +380,12 @@ class Level:
                     # Add text instruction if player has key and boss is defeated
                     if not self.boss or not self.boss.is_alive():
                         # Check if player is nearby
-                        dx = player.position[0] - self.altar_position[0] if hasattr(player, 'position') else 0
-                        dy = player.position[1] - self.altar_position[1] if hasattr(player, 'position') else 0
-                        distance = math.sqrt(dx * dx + dy * dy) if hasattr(player, 'position') else 100
+                        if player:
+                            dx = player.position[0] - self.altar_position[0]
+                            dy = player.position[1] - self.altar_position[1]
+                            distance = math.sqrt(dx * dx + dy * dy)
+                        else:
+                            distance = 100
                         
                         if distance <= 60:  # Show instruction when player is close
                             font = pygame.font.Font(None, 24)

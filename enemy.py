@@ -34,6 +34,9 @@ class Enemy:
         # Set stats based on enemy type and player level
         self.setup_stats(enemy_type, player_level)
         
+        # Set weapon based on enemy type
+        self.setup_weapon(enemy_type)
+        
         # Pathfinding
         self.path_update_timer = 0
         self.path_update_interval = 0.5  # Update path every 0.5 seconds
@@ -46,10 +49,11 @@ class Enemy:
     def setup_stats(self, enemy_type: str, player_level: int):
         """Set up enemy stats based on type and player level."""
         base_stats = {
-            "basic": {"health": 50, "damage": 15, "xp": 25, "attack_speed": 1.5},
-            "fast": {"health": 30, "damage": 12, "xp": 20, "attack_speed": 1.0},
-            "heavy": {"health": 80, "damage": 25, "xp": 40, "attack_speed": 2.5},
-            "ranged": {"health": 40, "damage": 20, "xp": 35, "attack_speed": 2.0}
+            "basic": {"health": 50, "damage": 15, "xp": 25, "attack_speed": 1.5, "weapon": "fist"},
+            "fast": {"health": 30, "damage": 12, "xp": 20, "attack_speed": 1.0, "weapon": "dagger"},
+            "heavy": {"health": 80, "damage": 25, "xp": 40, "attack_speed": 2.5, "weapon": "sword"},
+            "ranged": {"health": 40, "damage": 20, "xp": 35, "attack_speed": 2.0, "weapon": "ranged"},
+            "mobile_ranged": {"health": 35, "damage": 18, "xp": 30, "attack_speed": 1.8, "weapon": "ranged"}
         }
         
         stats = base_stats.get(enemy_type, base_stats["basic"])
@@ -89,6 +93,54 @@ class Enemy:
         # Mind control status
         self.mind_controlled = False
         self.mind_control_end_time = 0.0
+    
+    def setup_weapon(self, enemy_type: str):
+        """Set up weapon properties based on enemy type."""
+        weapon_configs = {
+            "basic": {  # Weakest - uses fist
+                "weapon_type": "fist",
+                "range": 20,
+                "arc": 60,
+                "speed_multiplier": 1.0
+            },
+            "fast": {  # Dagger - low damage, low range, 100 degree range, super fast
+                "weapon_type": "dagger",
+                "range": 25,
+                "arc": 100,
+                "speed_multiplier": 2.0,
+                "damage_multiplier": 0.8
+            },
+            "heavy": {  # Uses mace, spear, or sword
+                "weapon_type": random.choice(["mace", "spear", "sword"]),
+                "range": 35,
+                "arc": 90,
+                "speed_multiplier": 0.8
+            },
+            "ranged": {  # Ranged attacker
+                "weapon_type": "ranged",
+                "range": 100,
+                "arc": 15,
+                "speed_multiplier": 1.0
+            },
+            "mobile_ranged": {  # Fast moving ranged attacker that kites player
+                "weapon_type": "ranged",
+                "range": 80,
+                "arc": 20,
+                "speed_multiplier": 1.5,
+                "kite_behavior": True  # Moves away from player
+            }
+        }
+        
+        config = weapon_configs.get(enemy_type, weapon_configs["basic"])
+        self.weapon_type = config["weapon_type"]
+        self.weapon_range = config["range"]
+        self.weapon_arc = config["arc"]
+        self.weapon_speed_multiplier = config.get("speed_multiplier", 1.0)
+        self.weapon_damage_multiplier = config.get("damage_multiplier", 1.0)
+        self.kite_behavior = config.get("kite_behavior", False)
+        
+        # Adjust attack speed based on weapon
+        self.attack_cooldown /= self.weapon_speed_multiplier
     
     def update(self, dt: float, player, level, can_see_player: bool):
         """Update enemy AI and behavior."""
@@ -167,7 +219,12 @@ class Enemy:
         dy = target_pos[1] - self.position[1]
         distance = math.sqrt(dx**2 + dy**2)
         
-        if distance > 5:  # Don't move if very close to target
+        # Mobile ranged enemies use kiting behavior
+        if self.kite_behavior and distance < self.weapon_range * 0.8:
+            # Move away from player to maintain distance
+            self.velocity[0] = -(dx / distance) * self.speed
+            self.velocity[1] = -(dy / distance) * self.speed
+        elif distance > 5:  # Normal chase behavior
             # Normalize direction and apply speed
             self.velocity[0] = (dx / distance) * self.speed
             self.velocity[1] = (dy / distance) * self.speed
@@ -187,8 +244,10 @@ class Enemy:
             self.last_attack_time = current_time
     
     def attack_player(self, player):
-        """Attack the player (different behavior for ranged vs melee)."""
-        if self.enemy_type == "ranged":
+        """Attack the player using their weapon type."""
+        damage = int(self.damage * self.weapon_damage_multiplier)
+        
+        if self.weapon_type == "ranged":
             # Ranged enemies shoot projectiles (simplified - just direct damage for now)
             print(f"{self.enemy_type} enemy shoots at player!")
             player.take_damage(self.damage)

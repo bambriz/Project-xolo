@@ -168,7 +168,7 @@ class Spell(Item):
         spell_data = {
             SpellType.HASTE: {
                 "name": "Haste Spell",
-                "description": "25% speed boost while holding right click",
+                "description": "80% speed boost while holding right click",
                 "color": (100, 255, 255),  # Cyan
                 "cooldown": 0.0,
                 "effect": "speed_boost"

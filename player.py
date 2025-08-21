@@ -76,11 +76,24 @@ class Player:
         """Get movement speed considering active effects."""
         return self.speed
     
+    def get_current_speed(self, mouse_buttons) -> float:
+        """Get current movement speed considering haste spell."""
+        base_speed = self.speed
+        
+        # Check for haste spell boost while right clicking
+        if mouse_buttons[2] and self.inventory.spell and self.inventory.spell.effect == "speed_boost":
+            return base_speed * 1.8  # 80% speed boost
+        
+        return base_speed
+    
     def update(self, dt: float, keys, mouse_pos: Tuple[int, int], 
                mouse_buttons: Tuple[bool, bool, bool], level):
         """Update player state, movement, and combat."""
+        # Store mouse buttons for visual effects
+        self._last_mouse_buttons = mouse_buttons
+        
         # Handle movement input
-        self.handle_movement(dt, keys, level)
+        self.handle_movement(dt, keys, level, mouse_buttons)
         
         # Handle combat input
         self.handle_combat_input(dt, mouse_pos, mouse_buttons, level)
@@ -93,26 +106,32 @@ class Player:
         if current_time - self.last_damage_time > 3.0:  # 3 seconds without damage
             self.heal(self.health_regen_rate * dt)
     
-    def handle_movement(self, dt: float, keys, level):
+    def handle_movement(self, dt: float, keys, level, mouse_buttons=None):
         """Handle player movement based on input."""
         # Reset velocity
         self.velocity = [0.0, 0.0]
         
+        # Get current speed (considering haste boost)
+        if mouse_buttons:
+            current_speed = self.get_current_speed(mouse_buttons)
+        else:
+            current_speed = self.speed
+        
         # Check movement keys
         if keys[pygame.K_w] or keys[pygame.K_UP]:
-            self.velocity[1] -= self.speed
+            self.velocity[1] -= current_speed
         if keys[pygame.K_s] or keys[pygame.K_DOWN]:
-            self.velocity[1] += self.speed
+            self.velocity[1] += current_speed
         if keys[pygame.K_a] or keys[pygame.K_LEFT]:
-            self.velocity[0] -= self.speed
+            self.velocity[0] -= current_speed
         if keys[pygame.K_d] or keys[pygame.K_RIGHT]:
-            self.velocity[0] += self.speed
+            self.velocity[0] += current_speed
         
         # Normalize diagonal movement
         vel_magnitude = math.sqrt(self.velocity[0]**2 + self.velocity[1]**2)
-        if vel_magnitude > self.speed:
-            self.velocity[0] = (self.velocity[0] / vel_magnitude) * self.speed
-            self.velocity[1] = (self.velocity[1] / vel_magnitude) * self.speed
+        if vel_magnitude > current_speed:
+            self.velocity[0] = (self.velocity[0] / vel_magnitude) * current_speed
+            self.velocity[1] = (self.velocity[1] / vel_magnitude) * current_speed
         
         # Apply movement with collision detection
         self.move_with_collision(dt, level)
@@ -230,7 +249,7 @@ class Player:
         spell.use(current_time)
         
         if spell.effect == "speed_boost":  # Haste
-            # This will be handled in movement - player gets 25% speed boost while holding right click
+            # This will be handled in movement - player gets 80% speed boost while holding right click
             print("Haste activated!")
             
         elif spell.effect == "area_damage":  # Power Pulse
@@ -299,8 +318,33 @@ class Player:
         screen_x = int(self.position[0] + camera_x)
         screen_y = int(self.position[1] + camera_y)
         
+        # Check if haste effect is active for visual effects
+        is_hasted = (hasattr(self, '_last_mouse_buttons') and 
+                    self._last_mouse_buttons[2] and 
+                    self.inventory.spell and 
+                    self.inventory.spell.effect == "speed_boost")
+        
+        # Add speed trail effect when hasted
+        if is_hasted and hasattr(self, 'velocity'):
+            vel_magnitude = math.sqrt(self.velocity[0]**2 + self.velocity[1]**2)
+            if vel_magnitude > 50:  # Only show trail when moving fast
+                # Draw speed lines behind player
+                for i in range(3):
+                    trail_x = screen_x - (self.velocity[0] / vel_magnitude) * (12 + i * 8)
+                    trail_y = screen_y - (self.velocity[1] / vel_magnitude) * (12 + i * 8)
+                    alpha = 180 - (i * 60)
+                    trail_color = (100, 255, 255)  # Cyan trail
+                    pygame.draw.circle(screen, trail_color, (int(trail_x), int(trail_y)), 4 - i)
+        
+        # Add haste glow effect
+        if is_hasted:
+            pygame.draw.circle(screen, (100, 255, 255), (screen_x, screen_y), self.radius + 4, 2)
+            color = (150, 200, 255)  # Brighter when hasted
+        else:
+            color = self.color
+        
         # Draw player as a circle with outline
-        pygame.draw.circle(screen, self.color, (screen_x, screen_y), self.radius)
+        pygame.draw.circle(screen, color, (screen_x, screen_y), self.radius)
         pygame.draw.circle(screen, self.outline_color, (screen_x, screen_y), self.radius, 2)
         
         # Draw a small directional indicator

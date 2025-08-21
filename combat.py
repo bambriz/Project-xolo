@@ -88,9 +88,9 @@ class CombatSystem:
         self.last_melee_attack = 0
         self.last_ranged_attack = 0
         
-        # Melee attack properties
-        self.melee_range = 40
-        self.melee_arc = math.pi / 3  # 60 degrees
+        # Melee attack properties (default fist)
+        self.melee_range = 30  # 1 player distance
+        self.melee_arc = math.radians(60)  # 60 degrees as requested
         
         # Ranged attack properties
         self.projectile_speed = 400
@@ -115,17 +115,13 @@ class CombatSystem:
         if current_time - self.last_melee_attack < self.melee_cooldown:
             return False
         
-        # Calculate attack direction
+        # Calculate attack direction from mouse position
         dx = target_pos[0] - self.owner.position[0]
         dy = target_pos[1] - self.owner.position[1]
-        attack_distance = math.sqrt(dx**2 + dy**2)
-        
-        if attack_distance > self.melee_range:
-            return False  # Target too far
-        
-        # Perform attack
-        self.last_melee_attack = current_time
         attack_angle = math.atan2(dy, dx)
+        
+        # Always perform attack regardless of mouse distance (mouse just determines direction)
+        self.last_melee_attack = current_time
         
         # Create attack animation
         self.create_melee_animation(attack_angle)
@@ -230,10 +226,11 @@ class CombatSystem:
         else:
             # Default fist attack
             animation = {
-                'type': 'melee_sweep',
+                'type': 'fist_punch',
                 'angle': attack_angle,
                 'lifetime': 0.2,
-                'max_lifetime': 0.2
+                'max_lifetime': 0.2,
+                'range': self.melee_range
             }
         
         self.attack_animations.append(animation)
@@ -289,6 +286,8 @@ class CombatSystem:
                 self.render_spear_poke(screen, camera_x, camera_y, animation)
             elif animation['type'] == 'weapon_swing':
                 self.render_weapon_swing(screen, camera_x, camera_y, animation)
+            elif animation['type'] == 'fist_punch':
+                self.render_fist_punch(screen, camera_x, camera_y, animation)
     
     def render_melee_sweep(self, screen: pygame.Surface, camera_x: int, camera_y: int, animation):
         """Render a melee sweep animation."""
@@ -380,6 +379,23 @@ class CombatSystem:
             # Draw mace head (circle)
             pygame.draw.circle(screen, weapon.color, (int(end_x), int(end_y)), 8)
             pygame.draw.circle(screen, (50, 50, 50), (int(end_x), int(end_y)), 8, 2)
+    
+    def render_fist_punch(self, screen: pygame.Surface, camera_x: int, camera_y: int, animation):
+        """Render a fist punch animation."""
+        screen_x = int(self.owner.position[0] + camera_x)
+        screen_y = int(self.owner.position[1] + camera_y)
+        
+        progress = 1.0 - (animation['lifetime'] / animation['max_lifetime'])
+        
+        # Fist extends forward and back
+        punch_distance = animation['range'] * (0.7 + 0.3 * math.sin(progress * math.pi))
+        
+        end_x = screen_x + math.cos(animation['angle']) * punch_distance
+        end_y = screen_y + math.sin(animation['angle']) * punch_distance
+        
+        # Draw fist (circle representing knuckles)
+        pygame.draw.circle(screen, (210, 180, 140), (int(end_x), int(end_y)), 6)  # Flesh color
+        pygame.draw.circle(screen, (150, 120, 80), (int(end_x), int(end_y)), 6, 2)  # Darker outline
 
 def calculate_damage(base_damage: int, level: int, damage_type: str = "normal") -> int:
     """Calculate final damage based on various factors."""
