@@ -79,15 +79,23 @@ class Level:
         """Generate random rooms. Returns list of (x, y, width, height) tuples."""
         rooms = []
         attempts = 100
-        min_room_size = 4
-        max_room_size = 12
+        min_room_size = min(4, max(2, self.width // 4))
+        max_room_size = min(12, max(min_room_size + 1, self.width // 3, self.height // 3))
         
         for _ in range(attempts):
             # Random room size and position
             room_width = random.randint(min_room_size, max_room_size)
             room_height = random.randint(min_room_size, max_room_size)
-            room_x = random.randint(1, self.width - room_width - 1)
-            room_y = random.randint(1, self.height - room_height - 1)
+            
+            # Ensure room fits within level bounds
+            max_x = max(1, self.width - room_width - 1)
+            max_y = max(1, self.height - room_height - 1)
+            
+            if max_x < 1 or max_y < 1:
+                continue  # Skip if level too small for this room
+                
+            room_x = random.randint(1, max_x)
+            room_y = random.randint(1, max_y)
             
             # Check if room overlaps with existing rooms
             new_room = (room_x, room_y, room_width, room_height)
