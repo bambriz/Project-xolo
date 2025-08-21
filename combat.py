@@ -140,6 +140,14 @@ class CombatSystem:
                 damage_dealt = True
                 print(f"Melee hit! Dealt {self.owner.damage} damage to {enemy.enemy_type}")
         
+        # Check for boss hits
+        if level.boss and level.boss.is_alive() and self.is_in_melee_range(level.boss, attack_angle):
+            if level.boss.take_damage(self.owner.damage):
+                # Boss died
+                pass
+            damage_dealt = True
+            print(f"Melee hit! Dealt {self.owner.damage} damage to {level.boss.boss_type} boss")
+        
         return damage_dealt
     
     def attempt_ranged_attack(self, target_pos: Tuple[float, float]) -> bool:
@@ -170,7 +178,12 @@ class CombatSystem:
         dy = target.position[1] - self.owner.position[1]
         distance = math.sqrt(dx**2 + dy**2)
         
-        if distance > self.melee_range:
+        # Get weapon range (use weapon range multiplier if available)
+        weapon_range = self.melee_range
+        if hasattr(self.owner, 'inventory') and self.owner.inventory.melee_weapon:
+            weapon_range = self.melee_range * self.owner.inventory.melee_weapon.range_multiplier
+        
+        if distance > weapon_range:
             return False
         
         # Calculate angle to target
@@ -183,13 +196,46 @@ class CombatSystem:
         return angle_diff <= self.melee_arc / 2
     
     def create_melee_animation(self, attack_angle: float):
-        """Create a visual effect for melee attack."""
-        animation = {
-            'type': 'melee_sweep',
-            'angle': attack_angle,
-            'lifetime': 0.2,  # 200ms animation
-            'max_lifetime': 0.2
-        }
+        """Create a visual effect for melee attack based on weapon type."""
+        # Get weapon-specific animation data
+        weapon = self.owner.inventory.melee_weapon if hasattr(self.owner, 'inventory') and self.owner.inventory.melee_weapon else None
+        
+        if weapon:
+            if weapon.shape == "spear":
+                animation = {
+                    'type': 'spear_poke',
+                    'angle': attack_angle,
+                    'lifetime': 0.15,  # Quick poke animation
+                    'max_lifetime': 0.15,
+                    'range': self.melee_range * weapon.range_multiplier,
+                    'weapon': weapon
+                }
+            elif weapon.shape in ["sword", "mace"]:
+                animation = {
+                    'type': 'weapon_swing',
+                    'angle': attack_angle,
+                    'lifetime': 0.25,  # Swing animation
+                    'max_lifetime': 0.25,
+                    'arc': math.radians(weapon.attack_arc),
+                    'range': self.melee_range * weapon.range_multiplier,
+                    'weapon': weapon
+                }
+            else:
+                animation = {
+                    'type': 'melee_sweep',
+                    'angle': attack_angle,
+                    'lifetime': 0.2,
+                    'max_lifetime': 0.2
+                }
+        else:
+            # Default fist attack
+            animation = {
+                'type': 'melee_sweep',
+                'angle': attack_angle,
+                'lifetime': 0.2,
+                'max_lifetime': 0.2
+            }
+        
         self.attack_animations.append(animation)
     
     def update_projectiles(self, dt: float, level):
@@ -219,6 +265,15 @@ class CombatSystem:
             
             if hit_enemy:
                 continue
+            
+            # Check boss collisions
+            if level.boss and level.boss.is_alive() and projectile.check_collision(level.boss.position, level.boss.radius):
+                if level.boss.take_damage(projectile.damage):
+                    # Boss died
+                    pass
+                self.projectiles.remove(projectile)
+                print(f"Projectile hit! Dealt {projectile.damage} damage to {level.boss.boss_type} boss")
+                continue
     
     def render_projectiles(self, screen: pygame.Surface, camera_x: int, camera_y: int, asset_manager):
         """Render all projectiles."""
@@ -230,6 +285,10 @@ class CombatSystem:
         for animation in self.attack_animations:
             if animation['type'] == 'melee_sweep':
                 self.render_melee_sweep(screen, camera_x, camera_y, animation)
+            elif animation['type'] == 'spear_poke':
+                self.render_spear_poke(screen, camera_x, camera_y, animation)
+            elif animation['type'] == 'weapon_swing':
+                self.render_weapon_swing(screen, camera_x, camera_y, animation)
     
     def render_melee_sweep(self, screen: pygame.Surface, camera_x: int, camera_y: int, animation):
         """Render a melee sweep animation."""
@@ -245,21 +304,82 @@ class CombatSystem:
         start_angle = animation['angle'] - self.melee_arc / 2
         end_angle = animation['angle'] + self.melee_arc / 2
         
-        # Create arc points
-        arc_points = []
-        arc_steps = 10
-        for i in range(arc_steps + 1):
-            angle = start_angle + (end_angle - start_angle) * i / arc_steps
-            x = screen_x + math.cos(angle) * arc_radius * progress
-            y = screen_y + math.sin(angle) * arc_radius * progress
-            arc_points.append((x, y))
+        # Draw sweep arc with fading effect
+        alpha = int(255 * (1.0 - progress))
+        sweep_color = (255, 255, 255, alpha)
         
-        # Draw the arc
-        if len(arc_points) > 1:
-            alpha = int(255 * (1.0 - progress))
-            color = (255, 255, 255, alpha)
-            for i in range(len(arc_points) - 1):
-                pygame.draw.line(screen, color[:3], arc_points[i], arc_points[i + 1], 3)
+        # Draw multiple arc lines to show sweep
+        for i in range(5):
+            current_angle = start_angle + (end_angle - start_angle) * progress * (i / 4.0)
+            end_x = screen_x + math.cos(current_angle) * arc_radius
+            end_y = screen_y + math.sin(current_angle) * arc_radius
+            pygame.draw.line(screen, (255, 255, 255), (screen_x, screen_y), (end_x, end_y), 2)
+    
+    def render_spear_poke(self, screen: pygame.Surface, camera_x: int, camera_y: int, animation):
+        """Render a spear poke animation."""
+        screen_x = int(self.owner.position[0] + camera_x)
+        screen_y = int(self.owner.position[1] + camera_y)
+        
+        progress = 1.0 - (animation['lifetime'] / animation['max_lifetime'])
+        
+        # Spear extends and retracts
+        poke_distance = animation['range'] * (0.5 + 0.5 * math.sin(progress * math.pi))
+        
+        end_x = screen_x + math.cos(animation['angle']) * poke_distance
+        end_y = screen_y + math.sin(animation['angle']) * poke_distance
+        
+        # Draw spear shaft (thicker line)
+        pygame.draw.line(screen, (160, 82, 45), (screen_x, screen_y), (end_x, end_y), 4)
+        
+        # Draw spear tip (small triangle)
+        tip_size = 8
+        tip_angle = animation['angle']
+        tip_points = [
+            (end_x + math.cos(tip_angle) * tip_size, end_y + math.sin(tip_angle) * tip_size),
+            (end_x + math.cos(tip_angle + 2.5) * (tip_size // 2), end_y + math.sin(tip_angle + 2.5) * (tip_size // 2)),
+            (end_x + math.cos(tip_angle - 2.5) * (tip_size // 2), end_y + math.sin(tip_angle - 2.5) * (tip_size // 2))
+        ]
+        pygame.draw.polygon(screen, (180, 180, 180), tip_points)
+    
+    def render_weapon_swing(self, screen: pygame.Surface, camera_x: int, camera_y: int, animation):
+        """Render a weapon swing animation."""
+        screen_x = int(self.owner.position[0] + camera_x)
+        screen_y = int(self.owner.position[1] + camera_y)
+        
+        progress = 1.0 - (animation['lifetime'] / animation['max_lifetime'])
+        weapon = animation['weapon']
+        
+        # Swing from right to left across the arc
+        arc_width = animation['arc']
+        swing_angle = animation['angle'] + (arc_width / 2) - (arc_width * progress)
+        
+        # Draw weapon shape
+        weapon_length = animation['range']
+        end_x = screen_x + math.cos(swing_angle) * weapon_length
+        end_y = screen_y + math.sin(swing_angle) * weapon_length
+        
+        if weapon.shape == "sword":
+            # Draw sword blade (line with slight width)
+            pygame.draw.line(screen, weapon.color, (screen_x, screen_y), (end_x, end_y), 4)
+            # Draw hilt (crossguard)
+            hilt_x = screen_x + math.cos(swing_angle) * 15
+            hilt_y = screen_y + math.sin(swing_angle) * 15
+            hilt_perp_x = hilt_x + math.cos(swing_angle + math.pi/2) * 8
+            hilt_perp_y = hilt_y + math.sin(swing_angle + math.pi/2) * 8
+            hilt_perp_x2 = hilt_x + math.cos(swing_angle - math.pi/2) * 8
+            hilt_perp_y2 = hilt_y + math.sin(swing_angle - math.pi/2) * 8
+            pygame.draw.line(screen, (100, 100, 100), (hilt_perp_x, hilt_perp_y), (hilt_perp_x2, hilt_perp_y2), 3)
+            
+        elif weapon.shape == "mace":
+            # Draw mace handle
+            handle_end = weapon_length * 0.7
+            handle_x = screen_x + math.cos(swing_angle) * handle_end
+            handle_y = screen_y + math.sin(swing_angle) * handle_end
+            pygame.draw.line(screen, (139, 69, 19), (screen_x, screen_y), (handle_x, handle_y), 3)
+            
+            # Draw mace head (circle)
+            pygame.draw.circle(screen, weapon.color, (int(end_x), int(end_y)), 8)
+            pygame.draw.circle(screen, (50, 50, 50), (int(end_x), int(end_y)), 8, 2)
 
 def calculate_damage(base_damage: int, level: int, damage_type: str = "normal") -> int:
     """Calculate final damage based on various factors."""

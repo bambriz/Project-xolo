@@ -73,10 +73,10 @@ class MeleeWeapon(Item):
             },
             MeleeWeaponType.SPEAR: {
                 "name": "Spear", 
-                "description": "Long range, straight line, fast attacks",
+                "description": "2.5x range, straight line, fast attacks",
                 "color": (160, 82, 45),  # Brown
                 "damage_multiplier": 0.8,
-                "range_multiplier": 1.5,
+                "range_multiplier": 2.5,  # 2.5 times player length as requested
                 "attack_arc": 15,  # Very narrow
                 "attack_speed": 1.5,
                 "shape": "spear"

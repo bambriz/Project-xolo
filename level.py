@@ -67,6 +67,10 @@ class Level:
         # Initialize item management
         self.item_manager = ItemManager(self)
         
+        # Level tracking attributes for UI
+        self.current_game_level = player_level
+        self.max_game_level = 10
+        
         print(f"Generated level {width}x{height} for player level {player_level}")
         print(f"Spawned {len(self.enemies)} enemies")
     
@@ -332,15 +336,27 @@ class Level:
                 screen_x = int(self.key_position[0] + camera_x)
                 screen_y = int(self.key_position[1] + camera_y)
                 
-                # Draw key as a golden diamond
-                key_points = [
-                    (screen_x, screen_y - 15),
-                    (screen_x + 10, screen_y),
-                    (screen_x, screen_y + 15),
-                    (screen_x - 10, screen_y)
+                # Draw key as a unique key shape (not diamond like enchantments)
+                # Draw key shaft (horizontal rectangle)
+                shaft_rect = pygame.Rect(screen_x - 12, screen_y - 3, 20, 6)
+                pygame.draw.rect(screen, (255, 215, 0), shaft_rect)  # Gold shaft
+                
+                # Draw key head (circle)
+                pygame.draw.circle(screen, (255, 215, 0), (screen_x - 10, screen_y), 8)  # Gold head
+                
+                # Draw key teeth (small rectangles)
+                teeth_rects = [
+                    pygame.Rect(screen_x + 6, screen_y - 1, 4, 3),
+                    pygame.Rect(screen_x + 6, screen_y + 2, 6, 3)
                 ]
-                pygame.draw.polygon(screen, (255, 215, 0), key_points)  # Gold
-                pygame.draw.polygon(screen, (255, 255, 255), key_points, 2)  # White outline
+                for rect in teeth_rects:
+                    pygame.draw.rect(screen, (255, 215, 0), rect)
+                
+                # Draw outline
+                pygame.draw.rect(screen, (255, 255, 255), shaft_rect, 2)  # White outline
+                pygame.draw.circle(screen, (255, 255, 255), (screen_x - 10, screen_y), 8, 2)  # White outline
+                for rect in teeth_rects:
+                    pygame.draw.rect(screen, (255, 255, 255), rect, 1)
         
         # Render altar
         if self.altar_position:
@@ -356,6 +372,19 @@ class Level:
                 # Draw glowing effect if ready
                 if self.key_collected:
                     pygame.draw.circle(screen, (255, 255, 255, 100), (screen_x, screen_y), 35, 2)
+                    
+                    # Add text instruction if player has key and boss is defeated
+                    if not self.boss or not self.boss.is_alive():
+                        # Check if player is nearby
+                        dx = player.position[0] - self.altar_position[0] if hasattr(player, 'position') else 0
+                        dy = player.position[1] - self.altar_position[1] if hasattr(player, 'position') else 0
+                        distance = math.sqrt(dx * dx + dy * dy) if hasattr(player, 'position') else 100
+                        
+                        if distance <= 60:  # Show instruction when player is close
+                            font = pygame.font.Font(None, 24)
+                            text = font.render("Press E to advance", True, (255, 255, 255))
+                            text_rect = text.get_rect(center=(screen_x, screen_y - 50))
+                            screen.blit(text, text_rect)
         
         # Render boss projectiles
         for projectile in self.boss_projectiles:
@@ -559,9 +588,11 @@ class Level:
             dy = player.position[1] - self.altar_position[1]
             distance = math.sqrt(dx * dx + dy * dy)
             
-            if distance <= player.radius + 25:
+            # Check if player is near altar and presses a key (E key)
+            keys = pygame.key.get_pressed()
+            if distance <= player.radius + 25 and keys[pygame.K_e]:
                 self.level_complete = True
-                print("Level completed! Altar activated.")
+                print("Level completed! Altar activated with E key.")
                 return True
         return False
     

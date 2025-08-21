@@ -156,8 +156,8 @@ class Game:
             if self.visibility_system.is_visible(enemy.position):
                 enemy.render(self.screen, camera_x, camera_y, self.asset_manager)
         
-        # Render boss (only if visible)
-        if self.level.boss and self.visibility_system.is_visible(self.level.boss.position):
+        # Render boss (only if visible) 
+        if self.level.boss and self.visibility_system.is_visible((self.level.boss.position[0], self.level.boss.position[1])):
             self.level.boss.render(self.screen, camera_x, camera_y, self.asset_manager)
         
         # Render player
@@ -166,12 +166,13 @@ class Game:
         # Render projectiles
         self.player.combat_system.render_projectiles(self.screen, camera_x, camera_y, self.asset_manager)
         
+        # Render melee attack animations
+        self.player.combat_system.render_melee_attacks(self.screen, camera_x, camera_y)
+        
         # Render items
         self.level.item_manager.render_items(self.screen, camera_x, camera_y, self.asset_manager)
         
-        # Render UI (health, XP, level, etc.) - pass current game level to UI
-        self.level.current_game_level = self.current_level
-        self.level.max_game_level = self.max_level
+        # Render UI (health, XP, level, etc.)
         self.ui.render(self.player, self.level, self.visibility_system)
         
         # Render pause overlay if paused

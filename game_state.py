@@ -36,6 +36,10 @@ class GameState:
             "total_xp_gained": 0
         }
         
+        # Additional properties accessed by main.py
+        self.levels_completed = []
+        self.total_play_time = 0.0
+        
         # Game session data
         self.session_start_time = pygame.time.get_ticks() / 1000.0
         self.current_level_start_time = pygame.time.get_ticks() / 1000.0
@@ -45,6 +49,7 @@ class GameState:
     def update(self, dt: float):
         """Update game state."""
         self.stats["total_playtime"] += dt
+        self.total_play_time += dt
     
     def set_phase(self, new_phase: str):
         """Change game phase."""

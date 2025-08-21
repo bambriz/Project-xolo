@@ -43,6 +43,16 @@ Preferred programming language: Python (specifically requested over JavaScript f
 - Comprehensive sound system with music tracks and sound effects (plug-and-play audio files)
 - Enhanced UI showing health, XP, inventory, level progress, boss status, and control instructions
 
+**Recent Improvements (Latest Session)**:
+- Fixed boss combat system - bosses now properly take damage from both melee and ranged attacks
+- Implemented weapon-specific attack animations (spear poke, sword/mace swing with visual feedback)
+- Enhanced spear weapon range to 2.5x player length as requested
+- Redesigned key visual to look like an actual key instead of a diamond shape (distinguishes from enchantments)
+- Added E key requirement for altar activation with clear visual instructions when near altar
+- Improved minimap to show floor paths, boss location, key, and altar positions for better navigation
+- Enhanced combat feedback with weapon-specific damage calculations and range multipliers
+- Added visual progression indicators and clearer UI instructions for level advancement
+
 ## Web Application Architecture
 
 **Frontend**: React 18 with TypeScript using Vite as the build tool. Implements a component-based architecture with modern React patterns including hooks and context.

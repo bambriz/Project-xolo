@@ -37,8 +37,9 @@ class UI:
         # Main HUD
         self.render_health_bar(player)
         self.render_xp_bar(player)
-        self.render_level_info(level)
+        self.render_level_info(player)
         self.render_stats_panel(player, level)
+        self.render_game_level_info(level)
         
         # Minimap
         self.render_minimap(player, level, visibility_system)
@@ -208,15 +209,24 @@ class UI:
         pygame.draw.rect(self.screen, (50, 50, 50), level_rect)
         pygame.draw.rect(self.screen, self.text_color, level_rect, 1)
         
-        # Draw walls (simplified)
-        for y in range(0, level.height, 2):  # Sample every 2nd tile for performance
-            for x in range(0, level.width, 2):
-                if level.tiles[y][x].type == "wall":
-                    wall_x = map_x + int(x * level.tile_size * scale)
-                    wall_y = map_y + int(y * level.tile_size * scale)
-                    wall_size = max(1, int(level.tile_size * scale * 2))
-                    pygame.draw.rect(self.screen, (100, 100, 100), 
-                                   (wall_x, wall_y, wall_size, wall_size))
+        # Draw walls and paths (more accurate minimap)
+        for y in range(level.height):
+            for x in range(level.width):
+                tile = level.tiles[y][x]
+                
+                # Only draw every 2nd tile for performance, but ensure accuracy
+                if x % 2 == 0 and y % 2 == 0:
+                    tile_x = map_x + int(x * level.tile_size * scale)
+                    tile_y = map_y + int(y * level.tile_size * scale)
+                    tile_size = max(1, int(level.tile_size * scale * 2))
+                    
+                    if tile.type == "wall":
+                        pygame.draw.rect(self.screen, (100, 100, 100), 
+                                       (tile_x, tile_y, tile_size, tile_size))
+                    elif tile.type == "floor":
+                        # Draw floor paths in a darker color for visibility
+                        pygame.draw.rect(self.screen, (70, 70, 70), 
+                                       (tile_x, tile_y, tile_size, tile_size))
         
         # Draw player
         player_x = map_x + int(player.position[0] * scale)
@@ -236,6 +246,36 @@ class UI:
                 enemy_x = map_x + int(enemy.position[0] * scale)
                 enemy_y = map_y + int(enemy.position[1] * scale)
                 pygame.draw.circle(self.screen, (200, 100, 100), (enemy_x, enemy_y), 2)
+        
+        # Draw boss (larger, different color)
+        if level.boss and level.boss.is_alive():
+            # Show boss if it's visible
+            if visibility_system:
+                boss_tile_x = int(level.boss.position[0] // level.tile_size)
+                boss_tile_y = int(level.boss.position[1] // level.tile_size)
+                if (boss_tile_x, boss_tile_y) in visibility_system.visible_tiles:
+                    boss_x = map_x + int(level.boss.position[0] * scale)
+                    boss_y = map_y + int(level.boss.position[1] * scale)
+                    pygame.draw.circle(self.screen, (255, 50, 50), (boss_x, boss_y), 4)  # Larger red circle
+            else:
+                boss_x = map_x + int(level.boss.position[0] * scale)
+                boss_y = map_y + int(level.boss.position[1] * scale)
+                pygame.draw.circle(self.screen, (255, 50, 50), (boss_x, boss_y), 4)
+        
+        # Draw key if not collected
+        if not level.key_collected and level.key_position:
+            if not visibility_system or visibility_system.is_visible(level.key_position):
+                key_x = map_x + int(level.key_position[0] * scale)
+                key_y = map_y + int(level.key_position[1] * scale)
+                pygame.draw.circle(self.screen, (255, 215, 0), (key_x, key_y), 3)  # Gold circle
+        
+        # Draw altar
+        if level.altar_position:
+            if not visibility_system or visibility_system.is_visible(level.altar_position):
+                altar_x = map_x + int(level.altar_position[0] * scale)
+                altar_y = map_y + int(level.altar_position[1] * scale)
+                altar_color = (100, 255, 100) if level.key_collected else (150, 150, 150)
+                pygame.draw.rect(self.screen, altar_color, (altar_x - 2, altar_y - 2, 4, 4))
     
     def render_controls_help(self):
         """Render control instructions."""
@@ -252,7 +292,7 @@ class UI:
             "WASD/Arrows: Move",
             "Left Click: Melee Attack",
             "Right Click: Ranged/Spell",
-            "E: Pickup Item",
+            "E: Pickup Item/Use Altar",
             "Q: Drop Spell",
             "P: Pause, ESC: Quit"
         ]
@@ -393,8 +433,8 @@ class UI:
         spell_surface = self.asset_manager.render_text(spell_text, "small", color)
         self.screen.blit(spell_surface, (x, current_y))
     
-    def render_level_info(self, level):
-        """Render current level information."""
+    def render_game_level_info(self, level):
+        """Render current game level information."""
         x = self.screen_width - 150
         y = self.margin
         
