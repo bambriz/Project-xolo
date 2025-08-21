@@ -7,6 +7,7 @@ import pygame
 import math
 from typing import Tuple, List
 from combat import CombatSystem
+from items import PlayerInventory
 
 class Player:
     """Player character with movement, stats, and combat capabilities."""
@@ -38,6 +39,9 @@ class Player:
         # Initialize combat system
         self.combat_system = CombatSystem(self)
         
+        # Initialize inventory
+        self.inventory = PlayerInventory()
+        
         # Visual properties
         self.color = (100, 150, 255)  # Light blue
         self.outline_color = (255, 255, 255)
@@ -46,8 +50,31 @@ class Player:
     
     @property
     def damage(self) -> int:
-        """Calculate current damage based on level and base damage."""
-        return int(self.base_damage * (1 + (self.level - 1) * 0.2))
+        """Calculate current damage based on level, base damage, and equipped weapon."""
+        base = int(self.base_damage * (1 + (self.level - 1) * 0.2))
+        
+        # Apply weapon multiplier if equipped
+        if self.inventory.melee_weapon:
+            base = int(base * self.inventory.melee_weapon.damage_multiplier)
+        
+        return base
+    
+    @property
+    def effective_max_health(self) -> int:
+        """Get max health considering enchantments."""
+        base_health = self.max_health
+        
+        # Red enchantment increases max HP to 125%
+        if (self.inventory.enchantment and 
+            self.inventory.enchantment.effect == "hp_boost"):
+            base_health = int(base_health * 1.25)
+            
+        return base_health
+    
+    @property
+    def effective_speed(self) -> float:
+        """Get movement speed considering active effects."""
+        return self.speed
     
     def update(self, dt: float, keys, mouse_pos: Tuple[int, int], 
                mouse_buttons: Tuple[bool, bool, bool], level):
@@ -116,10 +143,20 @@ class Player:
             target_pos = (world_mouse_x, world_mouse_y)
             self.combat_system.attempt_melee_attack(target_pos, level)
         
-        # Right click for ranged attack
+        # Right click for ranged attack or spell
         if mouse_buttons[2]:  # Right mouse button
             target_pos = (world_mouse_x, world_mouse_y)
-            self.combat_system.attempt_ranged_attack(target_pos)
+            
+            # Check if player has a spell equipped
+            if self.inventory.spell:
+                current_time = pygame.time.get_ticks() / 1000.0
+                if self.inventory.spell.is_ready(current_time):
+                    self.cast_spell(target_pos, current_time, level)
+                else:
+                    print(f"{self.inventory.spell.name} is on cooldown")
+            else:
+                # Default ranged attack
+                self.combat_system.attempt_ranged_attack(target_pos)
     
     def take_damage(self, amount: int) -> bool:
         """Take damage and return True if player dies."""
@@ -183,6 +220,78 @@ class Player:
     def get_xp_percentage(self) -> float:
         """Get XP progress to next level as a percentage (0.0 to 1.0)."""
         return self.xp / self.xp_to_next_level if self.xp_to_next_level > 0 else 0.0
+    
+    def cast_spell(self, target_pos: Tuple[float, float], current_time: float, level):
+        """Cast the equipped spell."""
+        if not self.inventory.spell:
+            return
+            
+        spell = self.inventory.spell
+        spell.use(current_time)
+        
+        if spell.effect == "speed_boost":  # Haste
+            # This will be handled in movement - player gets 25% speed boost while holding right click
+            print("Haste activated!")
+            
+        elif spell.effect == "area_damage":  # Power Pulse
+            # Deal high damage in circle around player
+            damage = int(self.damage * 2.0)  # Double damage
+            radius = self.radius * 2  # Double player radius
+            
+            for enemy in level.enemies:
+                if enemy.is_alive():
+                    dx = enemy.position[0] - self.position[0]
+                    dy = enemy.position[1] - self.position[1]
+                    distance = math.sqrt(dx * dx + dy * dy)
+                    
+                    if distance <= radius:
+                        enemy.take_damage(damage)
+                        print(f"Power Pulse hit {enemy.enemy_type} enemy for {damage} damage!")
+                        
+        elif spell.effect == "mind_control":  # Turn Coat
+            # Find closest enemy and make it attack other enemies
+            closest_enemy = None
+            min_distance = float('inf')
+            
+            for enemy in level.enemies:
+                if enemy.is_alive():
+                    dx = enemy.position[0] - self.position[0]
+                    dy = enemy.position[1] - self.position[1]
+                    distance = math.sqrt(dx * dx + dy * dy)
+                    
+                    if distance < min_distance:
+                        min_distance = distance
+                        closest_enemy = enemy
+            
+            if closest_enemy:
+                # Set enemy as mind controlled for 10 seconds
+                closest_enemy.mind_controlled = True
+                closest_enemy.mind_control_end_time = current_time + 10.0
+                print(f"Turn Coat: {closest_enemy.enemy_type} enemy is now attacking other enemies!")
+    
+    def try_pickup_item(self, level):
+        """Try to pickup nearby item."""
+        item = level.item_manager.check_item_pickup(tuple(self.position))
+        if item:
+            old_item = self.inventory.equip_item(item)
+            level.item_manager.pickup_item(item)
+            
+            if old_item:
+                # Drop the old item at player position
+                level.item_manager.drop_item(old_item, tuple(self.position))
+                print(f"Picked up {item.name}, dropped {old_item.name}")
+            else:
+                print(f"Picked up {item.name}")
+    
+    def drop_spell(self, level):
+        """Drop the equipped spell."""
+        if self.inventory.spell:
+            spell = self.inventory.drop_spell()
+            if spell:
+                level.item_manager.drop_item(spell, tuple(self.position))
+                print(f"Dropped {spell.name}")
+        else:
+            print("No spell equipped to drop")
     
     def render(self, screen: pygame.Surface, camera_x: int, camera_y: int, asset_manager):
         """Render the player on screen."""

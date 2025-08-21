@@ -59,6 +59,10 @@ class Game:
                     self.paused = not self.paused
                 elif event.key == pygame.K_r:
                     self.restart_game()
+                elif event.key == pygame.K_e:  # E key to pickup items
+                    self.player.try_pickup_item(self.level)
+                elif event.key == pygame.K_q:  # Q key to drop spell
+                    self.player.drop_spell(self.level)
     
     def update(self, dt: float):
         """Update all game objects and systems."""
@@ -123,8 +127,11 @@ class Game:
         # Render projectiles
         self.player.combat_system.render_projectiles(self.screen, camera_x, camera_y, self.asset_manager)
         
+        # Render items
+        self.level.item_manager.render_items(self.screen, camera_x, camera_y, self.asset_manager)
+        
         # Render UI (health, XP, level, etc.)
-        self.ui.render(self.player, self.level)
+        self.ui.render(self.player, self.level, self.visibility_system)
         
         # Render pause overlay if paused
         if self.paused:

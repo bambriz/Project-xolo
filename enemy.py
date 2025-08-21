@@ -85,6 +85,10 @@ class Enemy:
         
         self.color = colors.get(self.enemy_type, colors["basic"])
         self.outline_color = (255, 255, 255)
+        
+        # Mind control status
+        self.mind_controlled = False
+        self.mind_control_end_time = 0.0
     
     def update(self, dt: float, player, level, can_see_player: bool):
         """Update enemy AI and behavior."""
@@ -93,8 +97,17 @@ class Enemy:
         
         current_time = pygame.time.get_ticks() / 1000.0
         
-        # Update AI state based on player visibility
-        self.update_ai_state(player, can_see_player, current_time)
+        # Check mind control status
+        if self.mind_controlled and current_time >= self.mind_control_end_time:
+            self.mind_controlled = False
+            print(f"{self.enemy_type} enemy is no longer mind controlled")
+        
+        # Update AI state based on player visibility (mind controlled enemies act differently)
+        if not self.mind_controlled:
+            self.update_ai_state(player, can_see_player, current_time)
+        else:
+            # Mind controlled enemies attack other enemies instead
+            self.mind_control_behavior(dt, level, current_time)
         
         # Execute behavior based on current state
         if self.state == "idle":
@@ -271,6 +284,49 @@ class Enemy:
         if health_width > 0:
             pygame.draw.rect(screen, (50, 200, 50), 
                             (x - bar_width // 2, y, health_width, bar_height))
+    
+    def mind_control_behavior(self, dt: float, level, current_time: float):
+        """Behavior when mind controlled - attack other enemies."""
+        # Find nearest enemy that isn't mind controlled
+        target_enemy = None
+        min_distance = float('inf')
+        
+        for enemy in level.enemies:
+            if (enemy != self and enemy.is_alive() and not enemy.mind_controlled):
+                distance = self.distance_to_enemy(enemy)
+                if distance < min_distance:
+                    min_distance = distance
+                    target_enemy = enemy
+        
+        if target_enemy:
+            # Chase and attack the target enemy
+            if min_distance <= self.attack_range:
+                self.state = "attacking"
+                if current_time - self.last_attack_time >= self.attack_cooldown:
+                    # Attack the enemy
+                    target_enemy.take_damage(self.damage)
+                    self.last_attack_time = current_time
+                    print(f"Mind controlled {self.enemy_type} attacks {target_enemy.enemy_type}!")
+            else:
+                self.state = "chasing"
+                # Move towards target enemy
+                dx = target_enemy.position[0] - self.position[0]
+                dy = target_enemy.position[1] - self.position[1]
+                distance = math.sqrt(dx * dx + dy * dy)
+                
+                if distance > 0:
+                    self.velocity[0] = (dx / distance) * self.speed
+                    self.velocity[1] = (dy / distance) * self.speed
+        else:
+            # No enemies to attack, go idle
+            self.state = "idle"
+            self.velocity = [0.0, 0.0]
+
+    def distance_to_enemy(self, other_enemy) -> float:
+        """Calculate distance to another enemy."""
+        dx = other_enemy.position[0] - self.position[0]
+        dy = other_enemy.position[1] - self.position[1]
+        return math.sqrt(dx * dx + dy * dy)
 
 def create_enemy(position: Tuple[float, float], player_level: int) -> Enemy:
     """Factory function to create a random enemy appropriate for the player level."""

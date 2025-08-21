@@ -32,7 +32,7 @@ class UI:
         
         print("UI system initialized")
     
-    def render(self, player, level):
+    def render(self, player, level, visibility_system=None):
         """Render all UI elements."""
         # Main HUD
         self.render_health_bar(player)
@@ -41,10 +41,13 @@ class UI:
         self.render_stats_panel(player, level)
         
         # Minimap
-        self.render_minimap(player, level)
+        self.render_minimap(player, level, visibility_system)
         
         # Controls help
         self.render_controls_help()
+        
+        # Inventory display
+        self.render_inventory(player)
     
     def render_health_bar(self, player):
         """Render the player's health bar."""
@@ -79,8 +82,8 @@ class UI:
         pygame.draw.rect(self.screen, self.text_color, 
                         (bar_x, y, self.bar_width, self.bar_height), 1)
         
-        # Health text
-        health_text = f"{player.current_health}/{player.max_health}"
+        # Health text (floor current HP)
+        health_text = f"{int(player.current_health)}/{player.max_health}"
         text_surface = self.asset_manager.render_text(health_text, "small", self.text_color)
         text_x = bar_x + self.bar_width // 2 - text_surface.get_width() // 2
         text_y = y + self.bar_height // 2 - text_surface.get_height() // 2
@@ -185,7 +188,7 @@ class UI:
             proj_surface = self.asset_manager.render_text(proj_text, "small", self.text_color)
             self.screen.blit(proj_surface, (x, y + 60))
     
-    def render_minimap(self, player, level):
+    def render_minimap(self, player, level, visibility_system=None):
         """Render a simple minimap."""
         map_x = self.screen_width - self.minimap_size - self.margin
         map_y = self.margin
@@ -220,9 +223,16 @@ class UI:
         player_y = map_y + int(player.position[1] * scale)
         pygame.draw.circle(self.screen, (100, 150, 255), (player_x, player_y), 3)
         
-        # Draw enemies
+        # Draw enemies (only if in visibility range)
         for enemy in level.enemies:
             if enemy.is_alive():
+                # Only show enemy if it's within fog of war visibility
+                if visibility_system:
+                    enemy_tile_x = int(enemy.position[0] // level.tile_size)
+                    enemy_tile_y = int(enemy.position[1] // level.tile_size)
+                    if (enemy_tile_x, enemy_tile_y) not in visibility_system.visible_tiles:
+                        continue
+                
                 enemy_x = map_x + int(enemy.position[0] * scale)
                 enemy_y = map_y + int(enemy.position[1] * scale)
                 pygame.draw.circle(self.screen, (200, 100, 100), (enemy_x, enemy_y), 2)
@@ -241,14 +251,15 @@ class UI:
         controls = [
             "WASD/Arrows: Move",
             "Left Click: Melee Attack",
-            "Right Click: Ranged Attack",
-            "P: Pause",
-            "ESC: Quit"
+            "Right Click: Ranged/Spell",
+            "E: Pickup Item",
+            "Q: Drop Spell",
+            "P: Pause, ESC: Quit"
         ]
         
         for i, control in enumerate(controls):
             text_surface = self.asset_manager.render_text(control, "small", self.text_color)
-            self.screen.blit(text_surface, (x, y + i * 20))
+            self.screen.blit(text_surface, (x, y + i * 18))
     
     def draw_panel(self, x: int, y: int, width: int, height: int):
         """Draw a semi-transparent panel background."""
@@ -320,3 +331,64 @@ class UI:
         restart_x = self.screen_width // 2 - restart_surface.get_width() // 2
         restart_y = text_y + 60
         self.screen.blit(restart_surface, (restart_x, restart_y))
+    
+    def render_inventory(self, player):
+        """Render the player's equipped items."""
+        x = self.margin
+        y = self.screen_height - 120
+        
+        # Background panel
+        panel_width = 280
+        panel_height = 100
+        self.draw_panel(x - 5, y - 5, panel_width, panel_height)
+        
+        # Title
+        title = self.asset_manager.render_text("Equipped Items:", "small", self.text_color)
+        self.screen.blit(title, (x, y))
+        
+        current_y = y + 25
+        
+        # Melee weapon
+        weapon_text = "Melee: "
+        if player.inventory.melee_weapon:
+            weapon_text += player.inventory.melee_weapon.name
+            color = player.inventory.melee_weapon.color
+        else:
+            weapon_text += "Default Fists"
+            color = (200, 200, 200)
+        
+        weapon_surface = self.asset_manager.render_text(weapon_text, "small", color)
+        self.screen.blit(weapon_surface, (x, current_y))
+        current_y += 20
+        
+        # Enchantment
+        enchant_text = "Enchant: "
+        if player.inventory.enchantment:
+            enchant_text += player.inventory.enchantment.name
+            color = player.inventory.enchantment.color
+        else:
+            enchant_text += "None"
+            color = (200, 200, 200)
+            
+        enchant_surface = self.asset_manager.render_text(enchant_text, "small", color)
+        self.screen.blit(enchant_surface, (x, current_y))
+        current_y += 20
+        
+        # Spell
+        spell_text = "Spell: "
+        if player.inventory.spell:
+            spell_text += player.inventory.spell.name
+            color = player.inventory.spell.color
+            
+            # Show cooldown if on cooldown
+            current_time = pygame.time.get_ticks() / 1000.0
+            if not player.inventory.spell.is_ready(current_time):
+                remaining = player.inventory.spell.cooldown - (current_time - player.inventory.spell.last_used)
+                spell_text += f" ({remaining:.1f}s)"
+                color = (150, 150, 150)
+        else:
+            spell_text += "Default Ranged"
+            color = (200, 200, 200)
+            
+        spell_surface = self.asset_manager.render_text(spell_text, "small", color)
+        self.screen.blit(spell_surface, (x, current_y))

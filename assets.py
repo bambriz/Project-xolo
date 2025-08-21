@@ -55,6 +55,9 @@ class AssetManager:
         # UI elements
         self.sprites["health_icon"] = self.create_icon_sprite(16, "health")
         self.sprites["xp_icon"] = self.create_icon_sprite(16, "xp")
+        
+        # Item sprites
+        self.generate_item_sprites()
     
     def create_player_sprite(self, size: int) -> pygame.Surface:
         """Create a player sprite."""
@@ -204,6 +207,96 @@ class AssetManager:
                 star_points.append(inner_points[i])
             
             pygame.draw.polygon(surface, color, star_points)
+        
+        return surface
+    
+    def generate_item_sprites(self):
+        """Generate sprites for all item types."""
+        # Melee weapons
+        self.sprites["item_sword"] = self.create_item_sprite(24, "sword", (200, 200, 255))
+        self.sprites["item_spear"] = self.create_item_sprite(24, "spear", (160, 82, 45))
+        self.sprites["item_mace"] = self.create_item_sprite(24, "mace", (128, 128, 128))
+        
+        # Enchantments  
+        self.sprites["item_red_enchantment"] = self.create_item_sprite(24, "diamond", (255, 100, 100))
+        self.sprites["item_yellow_enchantment"] = self.create_item_sprite(24, "diamond", (255, 255, 100))
+        self.sprites["item_green_enchantment"] = self.create_item_sprite(24, "diamond", (100, 255, 100))
+        self.sprites["item_black_enchantment"] = self.create_item_sprite(24, "diamond", (150, 150, 150))
+        
+        # Spells
+        self.sprites["item_haste_spell"] = self.create_item_sprite(24, "star", (100, 255, 255))
+        self.sprites["item_power_pulse"] = self.create_item_sprite(24, "star", (255, 100, 255))
+        self.sprites["item_turn_coat"] = self.create_item_sprite(24, "star", (255, 165, 0))
+    
+    def create_item_sprite(self, size: int, shape: str, color: Tuple[int, int, int]) -> pygame.Surface:
+        """Create an item sprite based on shape and color."""
+        surface = pygame.Surface((size, size), pygame.SRCALPHA)
+        center = size // 2
+        
+        if shape == "sword":
+            # Sword shape
+            blade_points = [
+                (center, 2),
+                (center - 3, center + 4),
+                (center + 3, center + 4)
+            ]
+            pygame.draw.polygon(surface, color, blade_points)
+            # Handle
+            pygame.draw.rect(surface, (139, 69, 19), (center - 2, center + 4, 4, 8))
+            # Guard
+            pygame.draw.rect(surface, (192, 192, 192), (center - 6, center + 3, 12, 2))
+            
+        elif shape == "spear":
+            # Spear shape - vertical line with point
+            pygame.draw.line(surface, (139, 69, 19), (center, center + 8), (center, size - 2), 3)
+            spear_points = [
+                (center, 2),
+                (center - 2, center),
+                (center + 2, center)
+            ]
+            pygame.draw.polygon(surface, color, spear_points)
+            
+        elif shape == "mace":
+            # Mace shape - handle with heavy head
+            pygame.draw.line(surface, (139, 69, 19), (center, center + 2), (center, size - 2), 2)
+            pygame.draw.circle(surface, color, (center, center - 3), 7)
+            # Spikes
+            for angle in range(0, 360, 45):
+                x = center + 5 * math.cos(math.radians(angle))
+                y = center - 3 + 5 * math.sin(math.radians(angle))
+                pygame.draw.circle(surface, (200, 200, 200), (int(x), int(y)), 2)
+                
+        elif shape == "diamond":
+            # Diamond shape for enchantments
+            diamond_points = [
+                (center, 2),
+                (center + center - 4, center),
+                (center, size - 2),
+                (4, center)
+            ]
+            pygame.draw.polygon(surface, color, diamond_points)
+            pygame.draw.polygon(surface, (255, 255, 255), diamond_points, 2)
+            
+        elif shape == "star":
+            # Star shape for spells
+            points = []
+            for i in range(10):
+                angle = i * math.pi / 5
+                if i % 2 == 0:
+                    radius = center - 3
+                else:
+                    radius = (center - 3) // 2
+                x = center + radius * math.cos(angle - math.pi/2)
+                y = center + radius * math.sin(angle - math.pi/2)
+                points.append((x, y))
+            pygame.draw.polygon(surface, color, points)
+            pygame.draw.polygon(surface, (255, 255, 255), points, 1)
+            
+        else:
+            # Default square shape
+            rect = pygame.Rect(4, 4, size - 8, size - 8)
+            pygame.draw.rect(surface, color, rect)
+            pygame.draw.rect(surface, (255, 255, 255), rect, 2)
         
         return surface
     

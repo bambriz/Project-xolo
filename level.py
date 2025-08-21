@@ -8,6 +8,7 @@ import random
 import math
 from typing import Tuple, List, Set
 from enemy import create_enemy
+from items import ItemManager
 
 class Tile:
     """Represents a single tile in the dungeon."""
@@ -34,7 +35,7 @@ class Level:
         """Initialize a new dungeon level."""
         self.width = width
         self.height = height
-        self.tile_size = 32
+        self.tile_size = 64
         self.player_level = player_level
         
         # Create the tile grid
@@ -48,6 +49,9 @@ class Level:
         # Generate the level
         self.generate_level()
         self.spawn_enemies()
+        
+        # Initialize item management
+        self.item_manager = ItemManager(self)
         
         print(f"Generated level {width}x{height} for player level {player_level}")
         print(f"Spawned {len(self.enemies)} enemies")
