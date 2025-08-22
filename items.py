@@ -88,7 +88,7 @@ class MeleeWeapon(Item):
                 "color": (128, 128, 128),  # Gray
                 "damage_multiplier": 1.2,
                 "range_multiplier": 1.1,  # Increased range for better collision
-                "attack_arc": 110,
+                "attack_arc": 145,
                 "attack_speed": 0.9,
                 "knockback": True,
                 "knockback_distance": 64,  # One tile distance

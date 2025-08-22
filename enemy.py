@@ -110,21 +110,21 @@ class Enemy:
         weapon_configs = {
             "basic": {  # Weakest - uses fist
                 "weapon_type": "fist",
-                "range": 20,
+                "range": 30,  # Match player base range
                 "arc": 60,
                 "speed_multiplier": 1.0
             },
             "fast": {  # Dagger - low damage, low range, 100 degree range, super fast
                 "weapon_type": "dagger",
-                "range": 25,
+                "range": 30,  # Match player base range
                 "arc": 100,
                 "speed_multiplier": 2.0,
                 "damage_multiplier": 0.8
             },
             "heavy": {  # Uses mace, spear, or sword
                 "weapon_type": random.choice(["mace", "spear", "sword"]),
-                "range": 35,
-                "arc": 90,
+                "range": 33,  # Match player mace range (30 * 1.1)
+                "arc": 145,  # Match updated mace arc
                 "speed_multiplier": 0.8
             },
             "ranged": {  # Ranged attacker

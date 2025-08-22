@@ -484,7 +484,7 @@ class CombatSystem:
         
         # Ensure within level bounds
         if (0 <= tile_x < level.width and 0 <= tile_y < level.height and 
-            level.tiles[tile_y][tile_x].tile_type != "wall"):
+            level.tiles[tile_y][tile_x].type != "wall"):
             # No wall collision, apply full knockback
             target.position[0] = new_x
             target.position[1] = new_y
@@ -498,7 +498,7 @@ class CombatSystem:
                 test_tile_y = int(test_y // level.tile_size)
                 
                 if (0 <= test_tile_x < level.width and 0 <= test_tile_y < level.height and 
-                    level.tiles[test_tile_y][test_tile_x].tile_type != "wall"):
+                    level.tiles[test_tile_y][test_tile_x].type != "wall"):
                     target.position[0] = test_x
                     target.position[1] = test_y
                     break
