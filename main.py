@@ -51,8 +51,8 @@ class Game:
         self.visibility_system = VisibilitySystem(self.level)
         self.ui = UI(self.screen, self.asset_manager)
         
-        # Start background music
-        self.sound_manager.play_music(self.sound_manager.get_music_for_level(self.current_level))
+        # Start menu music initially
+        self.sound_manager.play_music('menu_music')
         
         # Game state
         self.running = True
@@ -112,6 +112,8 @@ class Game:
         
         # Check if player died
         if self.player.current_health <= 0:
+            print("Player died - switching to game over music")
+            self.sound_manager.play_music('menu_music')  # Play menu music during game over
             self.game_state.set_phase("game_over")
             return
         
@@ -343,7 +345,8 @@ class Game:
         self.game_state.stats["total_playtime"] = 0.0
         self.game_state.stats["levels_completed"] = 0
         
-        # Restart background music
+        # Switch to game music
+        print(f"Starting game music for level {self.current_level}")
         self.sound_manager.play_music(self.sound_manager.get_music_for_level(self.current_level))
         
         print(f"New game started! Player spawned at: {self.player.position}")
