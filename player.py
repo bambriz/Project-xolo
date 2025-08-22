@@ -8,6 +8,8 @@ import math
 from typing import Tuple, List
 from combat import CombatSystem
 from items import PlayerInventory
+from weapon_renderer import WeaponRenderer
+from damage_numbers import DamageNumberManager
 
 class Player:
     """Player character with movement, stats, and combat capabilities."""
@@ -392,6 +394,24 @@ class Player:
             end_x = screen_x + math.cos(direction) * (self.radius - 3)
             end_y = screen_y + math.sin(direction) * (self.radius - 3)
             pygame.draw.line(screen, (255, 255, 255), (screen_x, screen_y), (end_x, end_y), 2)
+        
+        # Render equipped weapon when not attacking
+        if not self.combat_system.attack_animations:
+            # Calculate facing angle based on movement or last attack direction
+            facing_angle = 0  # Default facing right
+            if self.velocity[0] != 0 or self.velocity[1] != 0:
+                facing_angle = math.atan2(self.velocity[1], self.velocity[0])
+            # Use a simple right-facing default
+            facing_angle = 0
+                
+            # Get current weapon type as string
+            weapon_type = "fist"  # Default
+            if self.inventory.melee_weapon:
+                weapon_type = str(self.inventory.melee_weapon.weapon_type)
+                
+            WeaponRenderer.render_equipped_weapon(
+                screen, screen_x, screen_y, weapon_type, self.radius, facing_angle
+            )
         
         # Draw health bar above player if damaged
         if self.current_health < self.max_health:

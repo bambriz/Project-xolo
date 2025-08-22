@@ -7,6 +7,7 @@ import pygame
 import math
 import random
 from typing import Tuple, List, Optional
+from weapon_renderer import WeaponRenderer
 
 class Enemy:
     """Base enemy class with AI behavior and combat capabilities."""
@@ -18,7 +19,8 @@ class Enemy:
         self.radius = 12
         
         # AI state
-        self.state = "idle"  # idle, chasing, attacking, dead
+        self.state = "idle"  # Enhanced states: idle, chasing, attacking, mind_controlled, kiting, flanking
+        self.ai_strategy = self.determine_ai_strategy()  # Strategy based on enemy type
         self.target_position = None
         self.last_seen_player_pos = None
         self.last_attack_time = 0
@@ -114,6 +116,10 @@ class Enemy:
         self.mind_controlled = False
         self.mind_control_end_time = 0.0
         self.mind_control_target = None  # Stick to one target
+        self.can_be_damaged_by_enemies = False  # Can other enemies damage this one
+        
+        # Weapon rendering properties
+        self.weapon_offset = self.calculate_weapon_offset()
         
         # Visual indicators for enchantment
         self.enchanted_color = (255, 165, 0)  # Orange for mind control
@@ -180,6 +186,31 @@ class Enemy:
         # Adjust attack speed based on weapon
         self.attack_cooldown /= self.weapon_speed_multiplier
     
+    def determine_ai_strategy(self) -> str:
+        """Determine AI strategy based on enemy type."""
+        strategies = {
+            "basic": "aggressive",       # Face player head-on
+            "fast": "flanking",          # Move in and out, flank
+            "heavy": "tank",             # Face player head-on, slow but steady
+            "ranged": "kiting",          # Keep distance, move away
+            "mobile_ranged": "kiting",   # Enhanced kiting behavior
+            "berserker": "aggressive",   # Full frontal assault
+            "assassin": "flanking"       # Hit and run tactics
+        }
+        return strategies.get(self.enemy_type, "aggressive")
+    
+    def calculate_weapon_offset(self) -> Tuple[float, float]:
+        """Calculate weapon rendering offset based on weapon type."""
+        if self.weapon_type == "fist":
+            return (0, 0)  # Fists render on sides
+        elif self.weapon_type in ["sword", "mace", "war_axe", "dagger", "twin_blades"]:
+            return (self.radius + 8, 0)  # Right side of enemy
+        elif self.weapon_type == "spear":
+            return (self.radius + 12, 0)  # Longer weapon, more offset
+        elif self.weapon_type == "ranged":
+            return (self.radius + 6, -4)  # Staff/wand position
+        return (0, 0)
+    
     def update(self, dt: float, player, level, can_see_player: bool):
         """Update enemy AI and behavior."""
         if not self.is_alive():
@@ -208,15 +239,23 @@ class Enemy:
             self.update_ai_state(player, can_see_player, current_time)
         else:
             # Mind controlled enemies attack other enemies instead
+            self.state = "mind_controlled"
+            self.can_be_damaged_by_enemies = True  # Can be damaged by other enemies
             self.mind_control_behavior(dt, level, current_time)
         
-        # Execute behavior based on current state
+        # Execute behavior based on current state and AI strategy
         if self.state == "idle":
             self.idle_behavior(dt)
         elif self.state == "chasing":
-            self.chase_behavior(dt, player, level, current_time)
+            self.strategic_chase_behavior(dt, player, level, current_time)
         elif self.state == "attacking":
-            self.attack_behavior(dt, player, current_time)
+            self.strategic_attack_behavior(dt, player, current_time)
+        elif self.state == "mind_controlled":
+            pass  # Already handled in mind_control_behavior
+        elif self.state == "kiting":
+            self.kiting_behavior(dt, player, current_time)
+        elif self.state == "flanking":
+            self.flanking_behavior(dt, player, current_time)
         
         # Apply movement
         self.apply_movement(dt, level)
@@ -353,6 +392,90 @@ class Enemy:
             self.velocity[0] = circle_dx * self.speed * 0.3
             self.velocity[1] = circle_dy * self.speed * 0.3
     
+    def strategic_chase_behavior(self, dt: float, player, level, current_time: float):
+        """Enhanced chase behavior based on AI strategy."""
+        if self.ai_strategy == "kiting":
+            self.state = "kiting"
+        elif self.ai_strategy == "flanking":
+            self.state = "flanking"
+        else:
+            # Default aggressive chase behavior
+            self.chase_behavior(dt, player, level, current_time)
+    
+    def strategic_attack_behavior(self, dt: float, player, current_time: float):
+        """Enhanced attack behavior based on AI strategy."""
+        if self.ai_strategy == "aggressive" or self.ai_strategy == "tank":
+            # Face player head-on, stop moving when attacking
+            self.velocity[0] = 0
+            self.velocity[1] = 0
+        # Execute attack
+        self.attack_behavior(dt, player, current_time)
+    
+    def kiting_behavior(self, dt: float, player, current_time: float):
+        """Kiting behavior - maintain distance and attack from range."""
+        dx = player.position[0] - self.position[0]
+        dy = player.position[1] - self.position[1]
+        distance = math.sqrt(dx**2 + dy**2)
+        
+        optimal_distance = self.weapon_range * 0.8
+        
+        if distance < optimal_distance:
+            # Move away from player
+            if distance > 0:
+                self.velocity[0] = -(dx / distance) * self.speed
+                self.velocity[1] = -(dy / distance) * self.speed
+        elif distance > self.weapon_range:
+            # Move closer but not too close
+            if distance > 0:
+                self.velocity[0] = (dx / distance) * self.speed * 0.7
+                self.velocity[1] = (dy / distance) * self.speed * 0.7
+        else:
+            # At good distance, attack
+            self.velocity[0] *= 0.5
+            self.velocity[1] *= 0.5
+            if current_time - self.last_attack_time >= self.attack_cooldown:
+                self.attack_player(player)
+                self.last_attack_time = current_time
+    
+    def flanking_behavior(self, dt: float, player, current_time: float):
+        """Flanking behavior - move in and out, circle around player."""
+        dx = player.position[0] - self.position[0]
+        dy = player.position[1] - self.position[1]
+        distance = math.sqrt(dx**2 + dy**2)
+        
+        if distance <= self.weapon_range:
+            # Attack and then move away
+            if current_time - self.last_attack_time >= self.attack_cooldown:
+                self.attack_player(player)
+                self.last_attack_time = current_time
+                # After attack, move away at an angle
+                angle = math.atan2(dy, dx) + random.uniform(-math.pi/2, math.pi/2)
+                self.velocity[0] = -math.cos(angle) * self.speed
+                self.velocity[1] = -math.sin(angle) * self.speed
+            else:
+                # Move away after attacking
+                angle = math.atan2(dy, dx) + math.pi + random.uniform(-math.pi/4, math.pi/4)
+                self.velocity[0] = math.cos(angle) * self.speed * 0.8
+                self.velocity[1] = math.sin(angle) * self.speed * 0.8
+        else:
+            # Circle around player to find opening
+            angle = math.atan2(dy, dx)
+            circle_angle = angle + math.pi/2  # Circle perpendicular to player direction
+            circle_radius = self.weapon_range * 1.2
+            
+            # Calculate circle position
+            circle_x = player.position[0] + math.cos(circle_angle) * circle_radius
+            circle_y = player.position[1] + math.sin(circle_angle) * circle_radius
+            
+            # Move toward circle position
+            to_circle_x = circle_x - self.position[0]
+            to_circle_y = circle_y - self.position[1]
+            to_circle_dist = math.sqrt(to_circle_x**2 + to_circle_y**2)
+            
+            if to_circle_dist > 0:
+                self.velocity[0] = (to_circle_x / to_circle_dist) * self.speed
+                self.velocity[1] = (to_circle_y / to_circle_dist) * self.speed
+
     def attack_behavior(self, dt: float, player, current_time: float):
         """Attack behavior - attack player when in range."""
         # Stop moving when attacking
@@ -483,6 +606,18 @@ class Enemy:
         # Draw health bar if damaged
         if self.current_health < self.max_health:
             self.draw_health_bar(screen, screen_x, screen_y - self.radius - 8)
+        
+        # Render equipped weapon when not attacking
+        if not hasattr(self, 'attack_animations') or not self.attack_animations:
+            facing_angle = 0  # Default facing right
+            if hasattr(self, 'last_seen_player_pos') and self.last_seen_player_pos:
+                facing_angle = WeaponRenderer.get_weapon_facing_angle(
+                    (self.position[0], self.position[1]), 
+                    (self.last_seen_player_pos[0], self.last_seen_player_pos[1])
+                )
+            WeaponRenderer.render_equipped_weapon(
+                screen, screen_x, screen_y, self.weapon_type, self.radius, facing_angle
+            )
         
         # Render ranged projectiles
         if hasattr(self, 'projectiles'):
@@ -648,12 +783,19 @@ class Enemy:
             self.mind_control_target = None
             min_distance = float('inf')
             
+            # Check all enemies including boss as valid targets
             for enemy in level.enemies:
                 if (enemy != self and enemy.is_alive() and not enemy.mind_controlled):
                     distance = self.distance_to_enemy(enemy)
                     if distance < min_distance:
                         min_distance = distance
                         self.mind_control_target = enemy
+            
+            # Also check boss as a valid target
+            if level.boss and level.boss != self and level.boss.is_alive() and not level.boss.mind_controlled:
+                boss_distance = self.distance_to_enemy(level.boss)
+                if boss_distance < min_distance:
+                    self.mind_control_target = level.boss
         
         if self.mind_control_target:
             target_distance = self.distance_to_enemy(self.mind_control_target)

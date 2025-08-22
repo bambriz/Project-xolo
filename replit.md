@@ -18,7 +18,12 @@ Preferred programming language: Python (specifically requested over JavaScript f
 **Modular File Structure**:
 - **main.py**: Game initialization, main loop, event handling, and rendering coordination
 - **player.py**: Player class with movement, stats, leveling, combat integration, and health management
-- **enemy.py**: Multiple enemy types (basic, fast, heavy, ranged) with state-based AI, pathfinding, and scaling based on player level
+- **enemy.py**: Multiple enemy types with enhanced strategic AI including state machines, weapon rendering integration, and boss-targeting turn coat mechanics
+- **new_enemy_types.py**: Advanced enemy variants including ricochet spell users with wall-bouncing projectiles
+- **boss_dagger_haste.py**: Enhanced boss with dagger weapons and haste ability for dynamic combat encounters
+- **weapon_renderer.py**: Comprehensive weapon visual system for all character types with attack-synchronized rendering
+- **damage_numbers.py**: Floating visual feedback system for damage and healing with color-coded display
+- **notifications.py**: UI notification system for item interactions with timed fade effects
 - **combat.py**: Complete combat system handling melee attacks, ranged projectiles, collision detection, and visual effects
 - **level.py**: Procedural dungeon generation with room-based layouts, corridor connections, wall collision detection
 - **visibility.py**: Line-of-sight raycasting system implementing fog of war with exploration tracking
@@ -43,15 +48,15 @@ Preferred programming language: Python (specifically requested over JavaScript f
 - Comprehensive sound system with music tracks and sound effects (plug-and-play audio files)
 - Enhanced UI showing health, XP, inventory, level progress, boss status, and control instructions
 
-**Recent Improvements (Latest Session)**:
-- Fixed boss combat system - bosses now properly take damage from both melee and ranged attacks
-- Implemented weapon-specific attack animations (spear poke, sword/mace swing with visual feedback)
-- Enhanced spear weapon range to 2.5x player length as requested
-- Redesigned key visual to look like an actual key instead of a diamond shape (distinguishes from enchantments)
-- Added E key requirement for altar activation with clear visual instructions when near altar
-- Improved minimap to show floor paths, boss location, key, and altar positions for better navigation
-- Enhanced combat feedback with weapon-specific damage calculations and range multipliers
-- Added visual progression indicators and clearer UI instructions for level advancement
+**Advanced Features (Latest Implementation)**:
+- Enhanced turn coat spell with comprehensive AI targeting - mind-controlled enemies seek and attack other enemies including bosses, lock onto single targets, and can be damaged by other enemies for dynamic battlefield control
+- Strategic AI state machine with behavior-based tactics - ranged enemies use kiting strategies, heavy enemies engage head-on with tank behavior, fast enemies employ flanking and hit-and-run tactics for diverse combat encounters
+- Complete weapon rendering system - all equipped weapons are visually displayed on players and enemies (fists on sides, melee weapons on right side, staffs for ranged) with attack-specific animations and proper rendering order
+- Floating damage numbers system - visual feedback displays damage dealt/received and healing with color-coded numbers (red for damage, green for healing, yellow for critical hits) that float and fade naturally
+- UI notification system - item pickup and drop notifications appear with descriptions, fade after 3 seconds, and stack vertically for clear inventory feedback
+- New enemy types with unique abilities - ricochet enemy that bounces projectiles off walls for strategic positioning and enhanced combat complexity
+- Enhanced boss variants - dagger-wielding shadow assassin boss with haste ability providing 2x speed and attack rate for 5 seconds with 15-second cooldown, creating intense burst combat phases
+- Comprehensive visual feedback - weapon damage only occurs during attack animations, proper weapon rendering based on enemy type, and enhanced combat clarity
 
 ## Web Application Architecture
 

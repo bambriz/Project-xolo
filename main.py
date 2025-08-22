@@ -16,6 +16,7 @@ from visibility import VisibilitySystem
 from sound_manager import SoundManager
 from damage_numbers import DamageNumberManager
 from notifications import NotificationManager
+from new_enemy_types import RicochetEnemy
 
 # Game constants
 SCREEN_WIDTH = 1024

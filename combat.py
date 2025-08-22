@@ -6,6 +6,7 @@ import pygame
 import math
 import random
 from typing import Tuple, List, Optional
+from damage_numbers import DamageNumberManager
 
 class Projectile:
     """A projectile fired by the player or enemies."""

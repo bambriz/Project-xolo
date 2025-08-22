@@ -9,6 +9,8 @@ import math
 from typing import Tuple, List, Set
 from enemy import create_enemy
 from boss import Boss
+from new_enemy_types import RicochetEnemy
+from boss_dagger_haste import DaggerHasteBoss
 from items import ItemManager
 
 class Tile:
@@ -200,9 +202,14 @@ class Level:
         spawn_attempts = 0
         max_spawn_attempts = 200
         
-        # Define enemy types including new mobile ranged type
+        # Define enemy types including new types
         enemy_types = ["basic", "fast", "heavy", "mobile_ranged"]
         enemy_weights = [3, 2, 2, 1]  # Basic most common, mobile_ranged least common
+        
+        # Add new ricochet enemy type for higher levels
+        if self.player_level >= 4:
+            enemy_types.append("ricochet")
+            enemy_weights.append(1)  # Rare spawn
         
         while len(self.enemies) < self.max_enemies and spawn_attempts < max_spawn_attempts:
             spawn_attempts += 1
