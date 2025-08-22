@@ -14,6 +14,8 @@ from ui import UI
 from assets import AssetManager
 from visibility import VisibilitySystem
 from sound_manager import SoundManager
+from damage_numbers import DamageNumberManager
+from notifications import NotificationManager
 
 # Game constants
 SCREEN_WIDTH = 1024
@@ -37,6 +39,8 @@ class Game:
         self.asset_manager = AssetManager()
         self.game_state = GameState()
         self.sound_manager = SoundManager()
+        self.damage_numbers = DamageNumberManager()
+        self.notifications = NotificationManager(SCREEN_WIDTH)
         
         # Initialize first level
         self.current_level = 1
@@ -141,6 +145,13 @@ class Game:
         # Update boss projectiles and effects
         self.level.update_boss_projectiles(dt, self.player)
         
+        # Update items (health packs moving toward player)
+        self.level.item_manager.update_items(dt, (self.player.position[0], self.player.position[1]))
+        
+        # Update damage numbers and notifications
+        self.damage_numbers.update(dt)
+        self.notifications.update(dt)
+        
         # Check key collection
         if self.level.check_key_collection(self.player):
             self.sound_manager.play_sound('key_pickup')
@@ -210,17 +221,26 @@ class Game:
         # Render level (walls, floors, etc.)
         self.level.render(self.screen, camera_x, camera_y, self.visibility_system, self.player)
         
-        # Render enemies (only if visible)
+        # Render enemies (only if visible) - but not their attack animations yet
         for enemy in self.level.enemies:
             if self.visibility_system.is_visible(enemy.position):
-                enemy.render(self.screen, camera_x, camera_y, self.asset_manager)
+                enemy.render_body(self.screen, camera_x, camera_y, self.asset_manager)
         
-        # Render boss (only if visible) 
+        # Render boss (only if visible) - but not their attack animations yet
         if self.level.boss and self.visibility_system.is_visible((self.level.boss.position[0], self.level.boss.position[1])):
-            self.level.boss.render(self.screen, camera_x, camera_y, self.asset_manager)
+            self.level.boss.render_body(self.screen, camera_x, camera_y, self.asset_manager)
         
         # Render player
         self.player.render(self.screen, camera_x, camera_y, self.asset_manager)
+        
+        # Render enemy attack animations ABOVE player
+        for enemy in self.level.enemies:
+            if self.visibility_system.is_visible(enemy.position):
+                enemy.render_attack_animations_only(self.screen, camera_x, camera_y)
+                
+        # Render boss attack animations ABOVE player
+        if self.level.boss and self.visibility_system.is_visible((self.level.boss.position[0], self.level.boss.position[1])):
+            self.level.boss.render_attack_animations_only(self.screen, camera_x, camera_y)
         
         # Render projectiles
         self.player.combat_system.render_projectiles(self.screen, camera_x, camera_y, self.asset_manager)
@@ -230,6 +250,12 @@ class Game:
         
         # Render items
         self.level.item_manager.render_items(self.screen, camera_x, camera_y, self.asset_manager)
+        
+        # Render damage numbers
+        self.damage_numbers.render(self.screen, camera_x, camera_y)
+        
+        # Render notifications (UI overlay)
+        self.notifications.render(self.screen)
     
     def render_pause_overlay(self):
         """Render the pause screen overlay."""

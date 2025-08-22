@@ -130,7 +130,7 @@ class Enemy:
             "fast": {  # Dagger - low damage, increased range, super fast
                 "weapon_type": "dagger",
                 "range": 45,  # Better spacing from player
-                "arc": 120,
+                "arc": 165,  # Fixed to 165° as requested
                 "speed_multiplier": 2.0,
                 "damage_multiplier": 0.8
             },
@@ -377,8 +377,8 @@ class Enemy:
             # Create visual projectile for ranged enemies
             from combat import Projectile
             projectile = Projectile(
-                self.position[:],  # Start from enemy position
-                player.position[:],  # Target player position
+                (self.position[0], self.position[1]),  # Start from enemy position
+                (player.position[0], player.position[1]),  # Target player position
                 damage,
                 300  # Projectile speed
             )
@@ -439,7 +439,12 @@ class Enemy:
         return self.current_health / self.max_health if self.max_health > 0 else 0.0
     
     def render(self, screen: pygame.Surface, camera_x: int, camera_y: int, asset_manager):
-        """Render the enemy on screen."""
+        """Render the enemy on screen (full rendering)."""
+        self.render_body(screen, camera_x, camera_y, asset_manager)
+        self.render_attack_animations_only(screen, camera_x, camera_y)
+    
+    def render_body(self, screen: pygame.Surface, camera_x: int, camera_y: int, asset_manager):
+        """Render just the enemy body without attack animations."""
         if not self.is_alive():
             return
         
@@ -487,7 +492,12 @@ class Enemy:
                 # Draw enemy projectile as red dot
                 pygame.draw.circle(screen, (255, 100, 100), (projectile_x, projectile_y), 4)
                 pygame.draw.circle(screen, (200, 0, 0), (projectile_x, projectile_y), 4, 1)
-        
+    
+    def render_attack_animations_only(self, screen: pygame.Surface, camera_x: int, camera_y: int):
+        """Render only the attack animations (to be drawn above player)."""
+        if not self.is_alive():
+            return
+            
         # Render attack animations
         if hasattr(self, 'attack_animations'):
             for animation in self.attack_animations:

@@ -48,8 +48,10 @@ class GameState:
     
     def update(self, dt: float):
         """Update game state."""
-        self.stats["total_playtime"] += dt
-        self.total_play_time += dt
+        # Only update playtime if not in game over state
+        if self.phase != "game_over":
+            self.stats["total_playtime"] += dt
+            self.total_play_time += dt
     
     def set_phase(self, new_phase: str):
         """Change game phase."""

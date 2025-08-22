@@ -39,6 +39,7 @@ class SpellType(Enum):
     TURN_COAT = "turn_coat"      # Medium cooldown, makes enemy attack other enemies
     SHIELD = "shield"        # NEW: Temporary invulnerability
     LIGHTNING_STORM = "lightning_storm"  # NEW: Chain lightning spell
+    RICOCHET = "ricochet"    # NEW: Bouncing projectile spell
 
 class Item:
     """Base class for all items."""
@@ -69,10 +70,10 @@ class MeleeWeapon(Item):
         weapon_data = {
             MeleeWeaponType.SWORD: {
                 "name": "Sword",
-                "description": "Mid range, 90° arc, high damage",
+                "description": "Long range, 90° arc, high damage",
                 "color": (200, 200, 255),  # Light blue
                 "damage_multiplier": 1.5,
-                "range_multiplier": 1.0,
+                "range_multiplier": 2.0,  # Doubled as requested
                 "attack_arc": 90,
                 "attack_speed": 1.0,
                 "shape": "sword"
@@ -232,6 +233,13 @@ class Spell(Item):
                 "color": (200, 200, 255),  # Electric blue
                 "cooldown": 10.0,  # High damage spell
                 "effect": "chain_lightning"
+            },
+            SpellType.RICOCHET: {
+                "name": "Ricochet Shot",
+                "description": "Bouncing projectile that ricochets 3 times",
+                "color": (255, 180, 100),  # Orange-yellow
+                "cooldown": 8.0,  # Medium-high cooldown
+                "effect": "ricochet_projectile"
             }
         }
         
@@ -260,8 +268,8 @@ class Spell(Item):
 class HealthItem(Item):
     """Health items that heal the player when picked up."""
     
-    def __init__(self, heal_percentage: float = None):
-        if heal_percentage is None:
+    def __init__(self, heal_percentage: float = 0.08):
+        if heal_percentage == 0.08:  # Default value
             # Random heal between 5-12% as requested
             heal_percentage = random.uniform(0.05, 0.12)
         
@@ -275,6 +283,11 @@ class HealthItem(Item):
             (100, 255, 100)  # Green color as requested
         )
         
+        # Movement properties for health packs moving toward player
+        self.velocity = [0.0, 0.0]
+        self.attraction_speed = 80.0  # Speed when moving toward player
+        self.attraction_range = 120.0  # Range to start moving toward player
+        
     def get_sprite_data(self) -> Dict:
         """Get data for health item sprite generation."""
         return {
@@ -282,6 +295,34 @@ class HealthItem(Item):
             "size": self.size,
             "shape": "cross"  # + symbol
         }
+    
+    def update(self, dt: float, player_pos: Tuple[float, float]):
+        """Update health pack movement toward player if in range."""
+        # Calculate distance to player
+        dx = player_pos[0] - self.position[0]
+        dy = player_pos[1] - self.position[1]
+        distance = math.sqrt(dx**2 + dy**2)
+        
+        # Move toward player if in attraction range
+        if distance <= self.attraction_range and distance > 20:  # Don't jitter when very close
+            # Normalize direction vector
+            if distance > 0:
+                direction_x = dx / distance
+                direction_y = dy / distance
+                
+                # Set velocity toward player
+                self.velocity[0] = direction_x * self.attraction_speed
+                self.velocity[1] = direction_y * self.attraction_speed
+                
+                # Apply movement
+                self.position = (
+                    self.position[0] + self.velocity[0] * dt,
+                    self.position[1] + self.velocity[1] * dt
+                )
+        else:
+            # Stop moving if too far or too close
+            self.velocity[0] = 0
+            self.velocity[1] = 0
     
     def use_on_player(self, player) -> bool:
         """Heal the player and return True if healing occurred."""
@@ -303,7 +344,7 @@ class ItemManager:
     
     def spawn_random_items(self):
         """Spawn random items throughout the level."""
-        num_items = random.randint(3, 7)  # 3-7 items per level
+        num_items = random.randint(6, 12)  # Increased from 3-7 to 6-12 items per level
         
         for _ in range(num_items):
             # Random item type
@@ -360,9 +401,9 @@ class ItemManager:
             return True
         return False
     
-    def drop_health_item(self, position: Tuple[float, float], heal_percentage: float = None):
+    def drop_health_item(self, position: Tuple[float, float], heal_percentage: float = 0.08):
         """Drop a health item at the specified position."""
-        health_item = HealthItem(heal_percentage)
+        health_item = HealthItem(heal_percentage if heal_percentage != 0.08 else 0.08)
         health_item.position = position
         self.items_on_ground.append(health_item)
         
@@ -379,7 +420,7 @@ class ItemManager:
                 self.drop_health_item(drop_pos)
         else:
             # Regular enemies have a chance to drop 1 health item
-            if random.random() < 0.4:  # 40% chance to drop health
+            if random.random() < 0.7:  # Increased from 40% to 70% chance to drop health
                 # Small random offset from enemy position
                 offset_x = random.uniform(-20, 20)
                 offset_y = random.uniform(-20, 20)
@@ -390,6 +431,13 @@ class ItemManager:
         """Drop an item at the specified position."""
         item.position = position
         self.items_on_ground.append(item)
+    
+    def update_items(self, dt: float, player_pos: Tuple[float, float]):
+        """Update all items on the ground."""
+        for item in self.items_on_ground:
+            # Update health packs to move toward player
+            if isinstance(item, HealthItem):
+                item.update(dt, player_pos)
     
     def render_items(self, screen: pygame.Surface, camera_x: int, camera_y: int, asset_manager):
         """Render all items on the ground."""
