@@ -185,6 +185,8 @@ class Enemy:
         
         # Adjust attack speed based on weapon
         self.attack_cooldown /= self.weapon_speed_multiplier
+        # Store base attack cooldown for flanking behavior resets
+        self.base_attack_cooldown = self.attack_cooldown
     
     def determine_ai_strategy(self) -> str:
         """Determine AI strategy based on enemy type."""
@@ -438,43 +440,94 @@ class Enemy:
                 self.last_attack_time = current_time
     
     def flanking_behavior(self, dt: float, player, current_time: float):
-        """Flanking behavior - move in and out, circle around player."""
+        """Enhanced flanking behavior - aggressive hit-and-run tactics, especially from sides/behind."""
         dx = player.position[0] - self.position[0]
         dy = player.position[1] - self.position[1]
         distance = math.sqrt(dx**2 + dy**2)
         
+        # Calculate relative position to player (front, side, or behind)
+        player_facing = getattr(player, 'last_movement_angle', 0)  # Default facing right
+        if hasattr(player, 'velocity') and (player.velocity[0] != 0 or player.velocity[1] != 0):
+            player_facing = math.atan2(player.velocity[1], player.velocity[0])
+        
+        enemy_angle = math.atan2(dy, dx)
+        relative_angle = abs(enemy_angle - player_facing)
+        relative_angle = min(relative_angle, 2 * math.pi - relative_angle)  # Normalize to 0-π
+        
+        # Determine position relative to player
+        is_behind = relative_angle > 2.5  # Behind player
+        is_side = 1.0 < relative_angle <= 2.5  # To the side
+        is_front = relative_angle <= 1.0  # In front
+        
+        # Aggressive sprint distance for flanking attacks
+        sprint_distance = self.weapon_range * 1.8
+        attack_distance = self.weapon_range * 1.1
+        
         if distance <= self.weapon_range:
-            # Attack and then move away
+            # In attack range - aggressive multi-hit if behind or to side
             if current_time - self.last_attack_time >= self.attack_cooldown:
                 self.attack_player(player)
                 self.last_attack_time = current_time
-                # After attack, move away at an angle
-                angle = math.atan2(dy, dx) + random.uniform(-math.pi/2, math.pi/2)
-                self.velocity[0] = -math.cos(angle) * self.speed
-                self.velocity[1] = -math.sin(angle) * self.speed
+                
+                # Aggressive follow-up behavior based on position
+                if is_behind or is_side:
+                    # Stay close for another attack if flanking
+                    self.attack_cooldown *= 0.7  # Faster attacks when flanking
+                    # Quick sidestep to maintain flanking position
+                    sidestep_angle = enemy_angle + (math.pi/2 if random.random() > 0.5 else -math.pi/2)
+                    self.velocity[0] = math.cos(sidestep_angle) * self.speed * 0.6
+                    self.velocity[1] = math.sin(sidestep_angle) * self.speed * 0.6
+                else:
+                    # Move away quickly if attacking from front
+                    escape_angle = enemy_angle + math.pi + random.uniform(-math.pi/3, math.pi/3)
+                    self.velocity[0] = math.cos(escape_angle) * self.speed * 1.2
+                    self.velocity[1] = math.sin(escape_angle) * self.speed * 1.2
             else:
-                # Move away after attacking
-                angle = math.atan2(dy, dx) + math.pi + random.uniform(-math.pi/4, math.pi/4)
-                self.velocity[0] = math.cos(angle) * self.speed * 0.8
-                self.velocity[1] = math.sin(angle) * self.speed * 0.8
+                # Continue aggressive pressure if behind/side
+                if is_behind or is_side:
+                    # Stay close, circle tightly
+                    circle_speed = self.speed * 0.8
+                    circle_angle = enemy_angle + (math.pi/3 if random.random() > 0.5 else -math.pi/3)
+                    self.velocity[0] = math.cos(circle_angle) * circle_speed
+                    self.velocity[1] = math.sin(circle_angle) * circle_speed
+                else:
+                    # Back away if in front
+                    retreat_angle = enemy_angle + math.pi
+                    self.velocity[0] = math.cos(retreat_angle) * self.speed * 0.9
+                    self.velocity[1] = math.sin(retreat_angle) * self.speed * 0.9
+                    
+        elif distance <= sprint_distance:
+            # Sprint in aggressively, especially if behind or to side
+            if is_behind or is_side:
+                # Aggressive sprint attack - double speed
+                sprint_speed = self.speed * 2.0
+                attack_angle = math.atan2(dy, dx)
+                self.velocity[0] = math.cos(attack_angle) * sprint_speed
+                self.velocity[1] = math.sin(attack_angle) * sprint_speed
+                print(f"Fast enemy sprinting in from {'behind' if is_behind else 'side'}!")
+            else:
+                # Normal approach from front
+                self.velocity[0] = (dx / distance) * self.speed * 1.3
+                self.velocity[1] = (dy / distance) * self.speed * 1.3
+                
         else:
-            # Circle around player to find opening
-            angle = math.atan2(dy, dx)
-            circle_angle = angle + math.pi/2  # Circle perpendicular to player direction
-            circle_radius = self.weapon_range * 1.2
+            # Position for flanking attack - move to sides or behind
+            target_angle = player_facing + (math.pi * 0.75 if random.random() > 0.5 else -math.pi * 0.75)  # 3/4 around
+            flanking_distance = self.weapon_range * 1.5
             
-            # Calculate circle position
-            circle_x = player.position[0] + math.cos(circle_angle) * circle_radius
-            circle_y = player.position[1] + math.sin(circle_angle) * circle_radius
+            # Calculate flanking position
+            flank_x = player.position[0] + math.cos(target_angle) * flanking_distance
+            flank_y = player.position[1] + math.sin(target_angle) * flanking_distance
             
-            # Move toward circle position
-            to_circle_x = circle_x - self.position[0]
-            to_circle_y = circle_y - self.position[1]
-            to_circle_dist = math.sqrt(to_circle_x**2 + to_circle_y**2)
+            # Move toward flanking position quickly
+            to_flank_x = flank_x - self.position[0]
+            to_flank_y = flank_y - self.position[1]
+            to_flank_dist = math.sqrt(to_flank_x**2 + to_flank_y**2)
             
-            if to_circle_dist > 0:
-                self.velocity[0] = (to_circle_x / to_circle_dist) * self.speed
-                self.velocity[1] = (to_circle_y / to_circle_dist) * self.speed
+            if to_flank_dist > 0:
+                move_speed = self.speed * 1.4  # Fast flanking movement
+                self.velocity[0] = (to_flank_x / to_flank_dist) * move_speed
+                self.velocity[1] = (to_flank_y / to_flank_dist) * move_speed
 
     def attack_behavior(self, dt: float, player, current_time: float):
         """Attack behavior - attack player when in range."""
@@ -666,78 +719,119 @@ class Enemy:
                             (x - bar_width // 2, y, health_width, bar_height))
     
     def create_attack_animation(self, attack_angle: float):
-        """Create enhanced visual effect for enemy weapon attack matching player animations."""
+        """Create attack animation using the equipped weapon's actual swing range and type."""
         if not hasattr(self, 'attack_animations'):
             self.attack_animations = []
         
-        # Create animation based on weapon type (matching player system)
+        # Use the weapon's actual arc for realistic swing animations
+        weapon_arc_radians = math.radians(getattr(self, 'weapon_arc', 90))
+        
+        # Create animation based on actual equipped weapon type with proper swing range
         if self.weapon_type == "sword":
             animation = {
-                'type': 'weapon_swing',
+                'type': 'enemy_sword_swing',
                 'angle': attack_angle,
-                'lifetime': 0.25,
-                'max_lifetime': 0.25,
-                'arc': math.radians(self.weapon_arc),
+                'lifetime': 0.3,
+                'max_lifetime': 0.3,
+                'arc': weapon_arc_radians,
                 'range': self.weapon_range,
-                'color': (150, 150, 200)  # Light blue
+                'swing_start': attack_angle - weapon_arc_radians / 2,
+                'swing_end': attack_angle + weapon_arc_radians / 2,
+                'color': (200, 200, 220)  # Silver blade
             }
         elif self.weapon_type == "spear":
             animation = {
-                'type': 'spear_poke',
-                'angle': attack_angle,
-                'lifetime': 0.15,
-                'max_lifetime': 0.15,
-                'range': self.weapon_range,
-                'color': (139, 69, 19)  # Brown
-            }
-        elif self.weapon_type == "mace":
-            animation = {
-                'type': 'weapon_swing',
+                'type': 'enemy_spear_poke',
                 'angle': attack_angle,
                 'lifetime': 0.25,
                 'max_lifetime': 0.25,
-                'arc': math.radians(self.weapon_arc),
                 'range': self.weapon_range,
-                'color': (128, 128, 128)  # Gray
+                'color': (180, 180, 200)  # Spear tip
+            }
+        elif self.weapon_type == "mace":
+            animation = {
+                'type': 'enemy_mace_swing',
+                'angle': attack_angle,
+                'lifetime': 0.4,
+                'max_lifetime': 0.4,
+                'arc': weapon_arc_radians,  # Maces have 145° arc
+                'range': self.weapon_range,
+                'swing_start': attack_angle - weapon_arc_radians / 2,
+                'swing_end': attack_angle + weapon_arc_radians / 2,
+                'color': (160, 160, 160)  # Gray mace
             }
         elif self.weapon_type == "dagger":
             animation = {
-                'type': 'dagger_thrust',
+                'type': 'enemy_dagger_stab',
                 'angle': attack_angle,
-                'lifetime': 0.15,  # Faster like player dagger
+                'lifetime': 0.15,  # Fast dagger attack
                 'max_lifetime': 0.15,
                 'range': self.weapon_range,
-                'color': (200, 200, 220),  # Bright silver
-                'arc': math.radians(self.weapon_arc)
+                'arc': weapon_arc_radians,  # Daggers have 165° arc
+                'swing_start': attack_angle - weapon_arc_radians / 2,
+                'swing_end': attack_angle + weapon_arc_radians / 2,
+                'color': (220, 220, 240)  # Sharp blade
+            }
+        elif self.weapon_type == "war_axe":
+            animation = {
+                'type': 'enemy_axe_swing',
+                'angle': attack_angle,
+                'lifetime': 0.35,
+                'max_lifetime': 0.35,
+                'arc': weapon_arc_radians,  # War axes have 160° arc
+                'range': self.weapon_range,
+                'swing_start': attack_angle - weapon_arc_radians / 2,
+                'swing_end': attack_angle + weapon_arc_radians / 2,
+                'color': (180, 50, 50)  # Red axe
+            }
+        elif self.weapon_type == "twin_blades":
+            animation = {
+                'type': 'enemy_twin_stab',
+                'angle': attack_angle,
+                'lifetime': 0.12,  # Very fast twin blade attack
+                'max_lifetime': 0.12,
+                'range': self.weapon_range,
+                'arc': weapon_arc_radians,  # Twin blades have 90° arc
+                'swing_start': attack_angle - weapon_arc_radians / 2,
+                'swing_end': attack_angle + weapon_arc_radians / 2,
+                'color': (240, 240, 250)  # Bright blades
             }
         else:  # fist or default
             animation = {
-                'type': 'fist_punch',
+                'type': 'enemy_punch',
                 'angle': attack_angle,
                 'lifetime': 0.2,
                 'max_lifetime': 0.2,
+                'arc': weapon_arc_radians,  # Fists have 90° arc
                 'range': self.weapon_range,
+                'swing_start': attack_angle - weapon_arc_radians / 2,
+                'swing_end': attack_angle + weapon_arc_radians / 2,
                 'color': (255, 150, 150)  # Light red for fist
             }
         
         self.attack_animations.append(animation)
     
     def render_attack_animation(self, screen: pygame.Surface, camera_x: int, camera_y: int, animation):
-        """Render enemy attack animation."""
+        """Render enemy attack animation matching weapon's actual swing range."""
         screen_x = int(self.position[0] + camera_x)
         screen_y = int(self.position[1] + camera_y)
         
         progress = 1.0 - (animation['lifetime'] / animation['max_lifetime'])
         
         if animation['type'] == 'enemy_sword_swing':
-            # Sword swing animation
-            swing_distance = animation['range'] * (0.7 + 0.3 * progress)
-            end_x = screen_x + math.cos(animation['angle']) * swing_distance
-            end_y = screen_y + math.sin(animation['angle']) * swing_distance
-            pygame.draw.line(screen, animation['color'], (screen_x, screen_y), (end_x, end_y), 3)
+            # Sword swing animation with proper arc
+            if 'swing_start' in animation and 'swing_end' in animation:
+                # Animate the swing across the weapon's arc
+                current_angle = animation['swing_start'] + (animation['swing_end'] - animation['swing_start']) * progress
+                swing_distance = animation['range'] * (0.7 + 0.3 * progress)
+                end_x = screen_x + math.cos(current_angle) * swing_distance
+                end_y = screen_y + math.sin(current_angle) * swing_distance
+                pygame.draw.line(screen, animation['color'], (screen_x, screen_y), (end_x, end_y), 3)
+                # Add sword glint effect
+                pygame.draw.circle(screen, (255, 255, 255), (int(end_x), int(end_y)), 2)
             
         elif animation['type'] == 'enemy_spear_poke':
-            # Spear poke animation
+            # Spear poke animation (straight thrust)
             poke_distance = animation['range'] * (0.5 + 0.5 * math.sin(progress * math.pi))
             end_x = screen_x + math.cos(animation['angle']) * poke_distance
             end_y = screen_y + math.sin(animation['angle']) * poke_distance
@@ -745,32 +839,76 @@ class Enemy:
             pygame.draw.circle(screen, (180, 180, 180), (int(end_x), int(end_y)), 3)
             
         elif animation['type'] == 'enemy_mace_swing':
-            # Mace swing animation
-            swing_distance = animation['range'] * (0.7 + 0.3 * progress)
-            end_x = screen_x + math.cos(animation['angle']) * swing_distance
-            end_y = screen_y + math.sin(animation['angle']) * swing_distance
-            # Draw handle
-            handle_end = swing_distance * 0.7
-            handle_x = screen_x + math.cos(animation['angle']) * handle_end
-            handle_y = screen_y + math.sin(animation['angle']) * handle_end
-            pygame.draw.line(screen, (139, 69, 19), (screen_x, screen_y), (handle_x, handle_y), 3)
-            # Draw mace head
-            pygame.draw.circle(screen, animation['color'], (int(end_x), int(end_y)), 6)
+            # Mace swing animation with proper arc
+            if 'swing_start' in animation and 'swing_end' in animation:
+                # Animate the swing across the weapon's arc (145° for maces)
+                current_angle = animation['swing_start'] + (animation['swing_end'] - animation['swing_start']) * progress
+                swing_distance = animation['range'] * (0.7 + 0.3 * progress)
+                end_x = screen_x + math.cos(current_angle) * swing_distance
+                end_y = screen_y + math.sin(current_angle) * swing_distance
+                # Draw handle
+                handle_end = swing_distance * 0.7
+                handle_x = screen_x + math.cos(current_angle) * handle_end
+                handle_y = screen_y + math.sin(current_angle) * handle_end
+                pygame.draw.line(screen, (139, 69, 19), (screen_x, screen_y), (handle_x, handle_y), 3)
+                # Draw mace head
+                pygame.draw.circle(screen, animation['color'], (int(end_x), int(end_y)), 6)
             
         elif animation['type'] == 'enemy_dagger_stab':
-            # Quick dagger stab
-            stab_distance = animation['range'] * (0.8 + 0.2 * math.sin(progress * math.pi * 2))
-            end_x = screen_x + math.cos(animation['angle']) * stab_distance
-            end_y = screen_y + math.sin(animation['angle']) * stab_distance
-            pygame.draw.line(screen, animation['color'], (screen_x, screen_y), (end_x, end_y), 2)
+            # Dagger stab animation with wide arc (165°)
+            if 'swing_start' in animation and 'swing_end' in animation:
+                current_angle = animation['swing_start'] + (animation['swing_end'] - animation['swing_start']) * progress
+                stab_distance = animation['range'] * (0.8 + 0.2 * math.sin(progress * math.pi * 2))
+                end_x = screen_x + math.cos(current_angle) * stab_distance
+                end_y = screen_y + math.sin(current_angle) * stab_distance
+                pygame.draw.line(screen, animation['color'], (screen_x, screen_y), (end_x, end_y), 2)
+                # Add multiple stab lines for twin blades effect
+                for offset in [-0.1, 0.1]:
+                    offset_x = end_x + math.cos(current_angle + offset) * 5
+                    offset_y = end_y + math.sin(current_angle + offset) * 5
+                    pygame.draw.line(screen, animation['color'], (screen_x, screen_y), (offset_x, offset_y), 1)
             
-        else:  # enemy_punch
-            # Fist punch animation
-            punch_distance = animation['range'] * (0.6 + 0.4 * math.sin(progress * math.pi))
-            end_x = screen_x + math.cos(animation['angle']) * punch_distance
-            end_y = screen_y + math.sin(animation['angle']) * punch_distance
-            pygame.draw.circle(screen, animation['color'], (int(end_x), int(end_y)), 5)
-            pygame.draw.circle(screen, (150, 150, 150), (int(end_x), int(end_y)), 5, 1)
+        elif animation['type'] == 'enemy_axe_swing':
+            # War axe swing animation with 160° arc
+            if 'swing_start' in animation and 'swing_end' in animation:
+                current_angle = animation['swing_start'] + (animation['swing_end'] - animation['swing_start']) * progress
+                swing_distance = animation['range'] * (0.7 + 0.3 * progress)
+                end_x = screen_x + math.cos(current_angle) * swing_distance
+                end_y = screen_y + math.sin(current_angle) * swing_distance
+                # Draw handle
+                handle_end = swing_distance * 0.6
+                handle_x = screen_x + math.cos(current_angle) * handle_end
+                handle_y = screen_y + math.sin(current_angle) * handle_end
+                pygame.draw.line(screen, (139, 69, 19), (screen_x, screen_y), (handle_x, handle_y), 4)
+                # Draw axe head (triangular)
+                axe_size = 8
+                for i in range(3):
+                    point_angle = current_angle + (i - 1) * 0.3
+                    point_x = end_x + math.cos(point_angle) * axe_size
+                    point_y = end_y + math.sin(point_angle) * axe_size
+                    pygame.draw.circle(screen, animation['color'], (int(point_x), int(point_y)), 2)
+            
+        elif animation['type'] == 'enemy_twin_stab':
+            # Twin blades stab with 90° arc
+            if 'swing_start' in animation and 'swing_end' in animation:
+                current_angle = animation['swing_start'] + (animation['swing_end'] - animation['swing_start']) * progress
+                stab_distance = animation['range'] * (0.9 + 0.1 * math.sin(progress * math.pi * 3))
+                # Draw two blades
+                for blade_offset in [-0.2, 0.2]:
+                    blade_angle = current_angle + blade_offset
+                    end_x = screen_x + math.cos(blade_angle) * stab_distance
+                    end_y = screen_y + math.sin(blade_angle) * stab_distance
+                    pygame.draw.line(screen, animation['color'], (screen_x, screen_y), (end_x, end_y), 2)
+            
+        else:  # enemy_punch (fist)
+            # Fist punch animation with 90° arc
+            if 'swing_start' in animation and 'swing_end' in animation:
+                current_angle = animation['swing_start'] + (animation['swing_end'] - animation['swing_start']) * progress
+                punch_distance = animation['range'] * (0.6 + 0.4 * math.sin(progress * math.pi))
+                end_x = screen_x + math.cos(current_angle) * punch_distance
+                end_y = screen_y + math.sin(current_angle) * punch_distance
+                pygame.draw.circle(screen, animation['color'], (int(end_x), int(end_y)), 5)
+                pygame.draw.circle(screen, (150, 150, 150), (int(end_x), int(end_y)), 5, 1)
     
     def mind_control_behavior(self, dt: float, level, current_time: float):
         """Enhanced mind control - stick to one target until dead or spell ends."""
