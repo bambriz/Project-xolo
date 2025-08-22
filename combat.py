@@ -157,8 +157,9 @@ class CombatSystem:
                     enemy.hit_effect_time = pygame.time.get_ticks() / 1000.0
                 
                 # Apply knockback if weapon has it
-                if weapon and hasattr(weapon, 'knockback') and weapon.knockback:
+                if weapon and hasattr(weapon, 'knockback') and weapon.knockback and hasattr(weapon, 'knockback_distance'):
                     self.apply_knockback(enemy, attack_angle, weapon.knockback_distance, level)
+                    print(f"Applied knockback: {weapon.knockback_distance} distance")
                 
                 damage_dealt = True
                 print(f"Melee hit! Dealt {self.owner.damage} damage to {enemy.enemy_type}")

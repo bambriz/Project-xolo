@@ -69,6 +69,10 @@ class Level:
         # Initialize item management
         self.item_manager = ItemManager(self)
         
+        # Initialize notification manager for item interactions
+        from notifications import NotificationManager
+        self.notification_manager = NotificationManager(800)  # Screen width
+        
         # Level tracking attributes for UI
         self.current_game_level = player_level
         self.max_game_level = 10
@@ -203,8 +207,8 @@ class Level:
         max_spawn_attempts = 200
         
         # Define enemy types including new types
-        enemy_types = ["basic", "fast", "heavy", "mobile_ranged"]
-        enemy_weights = [3, 2, 2, 1]  # Basic most common, mobile_ranged least common
+        enemy_types = ["basic", "fast", "heavy", "mobile_ranged", "juggernaut", "archer", "scout", "guardian"]
+        enemy_weights = [3, 3, 2, 1, 1, 2, 2, 2]  # Increased fast enemy weight for more aggressive gameplay
         
         # Add new ricochet enemy type for higher levels
         if self.player_level >= 4:

@@ -149,6 +149,10 @@ class Game:
         # Update items (health packs moving toward player)
         self.level.item_manager.update_items(dt, (self.player.position[0], self.player.position[1]))
         
+        # Update level notifications
+        if hasattr(self.level, 'notification_manager'):
+            self.level.notification_manager.update(dt)
+        
         # Update damage numbers and notifications
         self.damage_numbers.update(dt)
         self.notifications.update(dt)
@@ -257,6 +261,10 @@ class Game:
         
         # Render notifications (UI overlay)
         self.notifications.render(self.screen)
+        
+        # Render level notifications (item pickups)
+        if hasattr(self.level, 'notification_manager'):
+            self.level.notification_manager.render(self.screen)
     
     def render_pause_overlay(self):
         """Render the pause screen overlay."""

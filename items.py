@@ -40,6 +40,9 @@ class SpellType(Enum):
     SHIELD = "shield"        # NEW: Temporary invulnerability
     LIGHTNING_STORM = "lightning_storm"  # NEW: Chain lightning spell
     RICOCHET = "ricochet"    # NEW: Bouncing projectile spell
+    FROST_NOVA = "frost_nova"  # NEW: Freeze nearby enemies
+    FIRE_STORM = "fire_storm"  # NEW: Area damage over time
+    SHADOW_STEP = "shadow_step"  # NEW: Teleport and invisibility
 
 class Item:
     """Base class for all items."""
@@ -73,7 +76,7 @@ class MeleeWeapon(Item):
                 "description": "Long range, 90° arc, high damage",
                 "color": (200, 200, 255),  # Light blue
                 "damage_multiplier": 1.5,
-                "range_multiplier": 2.0,  # Doubled as requested
+                "range_multiplier": 1.5,  # Reduced by 25% from 2.0
                 "attack_arc": 90,
                 "attack_speed": 1.0,
                 "shape": "sword"
@@ -83,7 +86,7 @@ class MeleeWeapon(Item):
                 "description": "2.5x range, straight line, fast attacks",
                 "color": (160, 82, 45),  # Brown
                 "damage_multiplier": 0.8,
-                "range_multiplier": 2.5,  # 2.5 times player length as requested
+                "range_multiplier": 3.25,  # Increased by 30% from 2.5
                 "attack_arc": 15,  # Very narrow
                 "attack_speed": 1.5,
                 "shape": "spear"
@@ -167,14 +170,14 @@ class Enchantment(Item):
             },
             EnchantmentType.BLUE: {
                 "name": "Blue Enchantment",
-                "description": "Spell cooldowns reduced by 30%",
-                "color": (100, 150, 255),  # Bright blue
+                "description": "Reduces spell cooldowns by 30%",
+                "color": (50, 100, 255),  # Bright blue
                 "effect": "cooldown_reduction"
             },
             EnchantmentType.PURPLE: {
-                "name": "Purple Enchantment", 
-                "description": "Critical hit chance increased by 15%",
-                "color": (200, 100, 255),  # Purple
+                "name": "Purple Enchantment",
+                "description": "Increases critical hit chance by 15%",
+                "color": (150, 50, 200),  # Purple
                 "effect": "critical_chance"
             }
         }
@@ -240,6 +243,27 @@ class Spell(Item):
                 "color": (255, 180, 100),  # Orange-yellow
                 "cooldown": 8.0,  # Medium-high cooldown
                 "effect": "ricochet_projectile"
+            },
+            SpellType.FROST_NOVA: {
+                "name": "Frost Nova",
+                "description": "Freezes all nearby enemies for 3 seconds",
+                "color": (150, 200, 255),  # Ice blue
+                "cooldown": 12.0,
+                "effect": "freeze_enemies"
+            },
+            SpellType.FIRE_STORM: {
+                "name": "Fire Storm",
+                "description": "Creates burning area that damages enemies over time",
+                "color": (255, 100, 50),  # Orange-red
+                "cooldown": 15.0,
+                "effect": "fire_storm"
+            },
+            SpellType.SHADOW_STEP: {
+                "name": "Shadow Step",
+                "description": "Teleport to mouse location and gain 2s invisibility",
+                "color": (100, 50, 150),  # Dark purple
+                "cooldown": 10.0,
+                "effect": "shadow_step"
             }
         }
         

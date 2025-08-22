@@ -70,12 +70,16 @@ class Enemy:
         """Set up enemy stats based on type and player level."""
         base_stats = {
             "basic": {"health": 50, "damage": 15, "xp": 25, "attack_speed": 1.5, "weapon": "fist"},
-            "fast": {"health": 30, "damage": 12, "xp": 20, "attack_speed": 1.0, "weapon": "dagger"},
+            "fast": {"health": 30, "damage": 15, "xp": 20, "attack_speed": 0.6, "weapon": "dagger"},  # More aggressive
             "heavy": {"health": 80, "damage": 25, "xp": 40, "attack_speed": 2.5, "weapon": "sword"},
             "ranged": {"health": 40, "damage": 20, "xp": 35, "attack_speed": 2.0, "weapon": "ranged"},
             "mobile_ranged": {"health": 35, "damage": 18, "xp": 30, "attack_speed": 1.8, "weapon": "ranged"},
             "berserker": {"health": 120, "damage": 35, "xp": 60, "attack_speed": 2.0, "weapon": "war_axe"},
-            "assassin": {"health": 25, "damage": 20, "xp": 45, "attack_speed": 0.8, "weapon": "twin_blades"}
+            "assassin": {"health": 25, "damage": 20, "xp": 45, "attack_speed": 0.8, "weapon": "twin_blades"},
+            "juggernaut": {"health": 150, "damage": 30, "xp": 80, "attack_speed": 3.0, "weapon": "war_axe"},  # Tanky slow enemy
+            "archer": {"health": 35, "damage": 22, "xp": 35, "attack_speed": 1.5, "weapon": "ranged"},  # Precise ranged
+            "scout": {"health": 20, "damage": 10, "xp": 15, "attack_speed": 0.5, "weapon": "dagger"},  # Fast scout
+            "guardian": {"health": 100, "damage": 18, "xp": 50, "attack_speed": 2.0, "weapon": "spear"}  # Defensive
         }
         
         stats = base_stats.get(enemy_type, base_stats["basic"])
@@ -91,8 +95,9 @@ class Enemy:
         
         # Special abilities based on type
         if enemy_type == "fast":
-            self.speed *= 1.5
+            self.speed *= 2.0  # Much faster (was 1.5)
             self.sight_range *= 1.2
+            self.preferred_terrain = "open"  # Prefer open spaces for flanking
         elif enemy_type == "heavy":
             self.radius = 16
             self.attack_range = 25

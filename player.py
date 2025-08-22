@@ -327,8 +327,13 @@ class Player:
                         level.item_manager.pickup_item(item)
                         heal_percent = int(item.heal_percentage * 100)
                         print(f"Picked up health pack! Healed {heal_percent}%")
+                        # Add notification
+                        if hasattr(level, 'notification_manager'):
+                            level.notification_manager.add_pickup_notification(item.name, f"Healed {heal_percent}% health")
                     else:
                         print("Already at full health!")
+                        if hasattr(level, 'notification_manager'):
+                            level.notification_manager.add_pickup_notification("Health Pack", "Already at full health")
                 return
             
             # Handle equipment items (weapons, enchantments, spells)
@@ -339,8 +344,15 @@ class Player:
                 # Drop the old item at player position
                 level.item_manager.drop_item(old_item, tuple(self.position))
                 print(f"Picked up {item.name}, dropped {old_item.name}")
+                # Add notifications
+                if hasattr(level, 'notification_manager'):
+                    level.notification_manager.add_pickup_notification(item.name, item.description)
+                    level.notification_manager.add_drop_notification(old_item.name)
             else:
                 print(f"Picked up {item.name}")
+                # Add notification
+                if hasattr(level, 'notification_manager'):
+                    level.notification_manager.add_pickup_notification(item.name, item.description)
     
     def drop_spell(self, level):
         """Drop the equipped spell."""
@@ -349,6 +361,9 @@ class Player:
             if spell:
                 level.item_manager.drop_item(spell, tuple(self.position))
                 print(f"Dropped {spell.name}")
+                # Add notification
+                if hasattr(level, 'notification_manager'):
+                    level.notification_manager.add_drop_notification(spell.name)
         else:
             print("No spell equipped to drop")
     

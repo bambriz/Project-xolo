@@ -43,8 +43,8 @@ class WeaponRenderer:
                 
             sword_x = screen_x + math.cos(swing_angle) * base_offset
             sword_y = screen_y + math.sin(swing_angle) * base_offset
-            sword_tip_x = sword_x + math.cos(swing_angle) * 20
-            sword_tip_y = sword_y + math.sin(swing_angle) * 20
+            sword_tip_x = sword_x + math.cos(swing_angle) * 15  # Reduced by 25% from 20
+            sword_tip_y = sword_y + math.sin(swing_angle) * 15
             
             # Draw blade
             pygame.draw.line(screen, (200, 200, 220), (int(sword_x), int(sword_y)), 
@@ -87,8 +87,8 @@ class WeaponRenderer:
                 
             spear_x = screen_x + math.cos(facing_angle) * poke_distance
             spear_y = screen_y + math.sin(facing_angle) * poke_distance
-            spear_tip_x = spear_x + math.cos(facing_angle) * 18
-            spear_tip_y = spear_y + math.sin(facing_angle) * 18
+            spear_tip_x = spear_x + math.cos(facing_angle) * 23  # Increased by 30% from 18
+            spear_tip_y = spear_y + math.sin(facing_angle) * 23
             
             # Draw shaft
             pygame.draw.line(screen, (139, 69, 19), (int(screen_x), int(screen_y)), 
