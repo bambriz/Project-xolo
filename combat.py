@@ -165,6 +165,10 @@ class CombatSystem:
                         self.apply_knockback(enemy, attack_angle, weapon.knockback_distance, level)
                     print(f"Applied smooth knockback: {weapon.knockback_distance} force")
                 
+                # Show damage number on enemy
+                if hasattr(self.owner, 'game') and hasattr(self.owner.game, 'damage_numbers'):
+                    self.owner.game.damage_numbers.add_damage_number(enemy.position, self.owner.damage)
+                
                 damage_dealt = True
                 print(f"Melee hit! Dealt {self.owner.damage} damage to {enemy.enemy_type}")
         
@@ -187,6 +191,10 @@ class CombatSystem:
                 else:
                     # Fallback to old system for compatibility
                     self.apply_knockback(level.boss, attack_angle, weapon.knockback_distance // 2, level)
+            
+            # Show damage number on boss
+            if hasattr(self.owner, 'game') and hasattr(self.owner.game, 'damage_numbers'):
+                self.owner.game.damage_numbers.add_damage_number(level.boss.position, self.owner.damage)
             
             damage_dealt = True
             print(f"Melee hit! Dealt {self.owner.damage} damage to {level.boss.boss_type} boss")

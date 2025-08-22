@@ -49,6 +49,10 @@ class Game:
         self.level = Level(30 + self.current_level * 3, 25 + self.current_level * 2, self.current_level)
         self.player = Player(self.level.get_spawn_position())
         self.visibility_system = VisibilitySystem(self.level)
+        
+        # Connect game reference to subsystems for damage numbers
+        self.player.game = self
+        self.level.game = self
         self.ui = UI(self.screen, self.asset_manager)
         
         # Start menu music initially

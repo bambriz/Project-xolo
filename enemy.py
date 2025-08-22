@@ -176,7 +176,7 @@ class Enemy:
             },
             "heavy": {  # Uses mace, spear, or sword
                 "weapon_type": random.choice(["mace", "spear", "sword"]),
-                "range": 50,  # Better spacing from player
+                "range": 55 if random.choice(["mace", "spear", "sword"]) == "spear" else 50,  # Longer spear reach
                 "arc": 145,
                 "speed_multiplier": 0.8
             },

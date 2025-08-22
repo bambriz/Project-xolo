@@ -32,6 +32,13 @@ class Player:
         self.max_health = 100
         self.current_health = self.max_health
         self.health_regen_rate = 2.0  # HP per second
+        self.health_regen_timer = 0.0
+        
+        # Heal burst effect - 3x regeneration for 5 seconds
+        self.heal_burst_active = False
+        self.heal_burst_timer = 0.0
+        self.heal_burst_duration = 5.0
+        self.heal_burst_multiplier = 3.0
         self.last_damage_time = 0
         self.damage_immunity_duration = 0.5  # seconds
         
