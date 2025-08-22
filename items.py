@@ -333,7 +333,7 @@ class HealthItem(Item):
         return {
             "color": self.color,
             "size": self.size,
-            "shape": "cross"  # + symbol
+            "shape": "health_cross"  # Green plus sign
         }
     
     def update(self, dt: float, player_pos: Tuple[float, float]):

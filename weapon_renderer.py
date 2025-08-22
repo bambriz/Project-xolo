@@ -112,37 +112,58 @@ class WeaponRenderer:
             dagger_tip_x = dagger_x + math.cos(stab_angle) * 12
             dagger_tip_y = dagger_y + math.sin(stab_angle) * 12
             
-            # Draw blade
+            # Draw blade (silver)
             pygame.draw.line(screen, (200, 200, 220), (int(dagger_x), int(dagger_y)), 
-                           (int(dagger_tip_x), int(dagger_tip_y)), 2)
+                           (int(dagger_tip_x), int(dagger_tip_y)), 3)
+            # Draw small handle guard
+            guard_x1 = dagger_x + math.cos(stab_angle + math.pi/2) * 3
+            guard_y1 = dagger_y + math.sin(stab_angle + math.pi/2) * 3
+            guard_x2 = dagger_x + math.cos(stab_angle - math.pi/2) * 3
+            guard_y2 = dagger_y + math.sin(stab_angle - math.pi/2) * 3
+            pygame.draw.line(screen, (150, 150, 160), (int(guard_x1), int(guard_y1)), (int(guard_x2), int(guard_y2)), 2)
             
         elif weapon_type == "war_axe":
-            # Draw war axe on right side
-            base_offset = radius + 10
+            # Draw war axe with proper double-bladed design
+            base_offset = radius + 8
             if is_attacking:
-                swing_angle = facing_angle + (attack_progress * math.pi / 2)
+                swing_angle = facing_angle + (attack_progress * math.pi * 0.4)  # Reduced swing arc
             else:
                 swing_angle = facing_angle
                 
+            # Handle position (from center to axe head)
             handle_x = screen_x + math.cos(swing_angle) * base_offset
             handle_y = screen_y + math.sin(swing_angle) * base_offset
-            axe_head_x = handle_x + math.cos(swing_angle) * 14
-            axe_head_y = handle_y + math.sin(swing_angle) * 14
+            axe_head_x = handle_x + math.cos(swing_angle) * 15
+            axe_head_y = handle_y + math.sin(swing_angle) * 15
             
-            # Draw handle
-            pygame.draw.line(screen, (139, 69, 19), (int(screen_x), int(screen_y)), 
-                           (int(axe_head_x), int(axe_head_y)), 3)
+            # Draw wooden handle (brown)
+            pygame.draw.line(screen, (101, 67, 33), (int(screen_x), int(screen_y)), 
+                           (int(axe_head_x), int(axe_head_y)), 4)
             
-            # Draw axe head (triangular)
-            axe_points = []
-            for angle_offset in [-0.5, 0, 0.5]:
-                point_x = axe_head_x + math.cos(swing_angle + angle_offset) * 8
-                point_y = axe_head_y + math.sin(swing_angle + angle_offset) * 8
-                axe_points.append((int(point_x), int(point_y)))
+            # Create proper axe blade shape (double-bladed)
+            # Upper blade
+            upper_blade = [
+                (axe_head_x, axe_head_y),  # Center point
+                (axe_head_x + math.cos(swing_angle + math.pi/3) * 12, axe_head_y + math.sin(swing_angle + math.pi/3) * 12),
+                (axe_head_x + math.cos(swing_angle + math.pi/6) * 8, axe_head_y + math.sin(swing_angle + math.pi/6) * 8)
+            ]
+            # Lower blade
+            lower_blade = [
+                (axe_head_x, axe_head_y),  # Center point
+                (axe_head_x + math.cos(swing_angle - math.pi/3) * 12, axe_head_y + math.sin(swing_angle - math.pi/3) * 12),
+                (axe_head_x + math.cos(swing_angle - math.pi/6) * 8, axe_head_y + math.sin(swing_angle - math.pi/6) * 8)
+            ]
             
-            if len(axe_points) >= 3:
-                pygame.draw.polygon(screen, (180, 50, 50), axe_points)
-                pygame.draw.polygon(screen, (150, 30, 30), axe_points, 1)
+            # Convert to integer coordinates
+            upper_blade = [(int(x), int(y)) for x, y in upper_blade]
+            lower_blade = [(int(x), int(y)) for x, y in lower_blade]
+            
+            # Draw axe blades (steel gray)
+            pygame.draw.polygon(screen, (160, 160, 170), upper_blade)
+            pygame.draw.polygon(screen, (160, 160, 170), lower_blade)
+            # Blade outlines (darker)
+            pygame.draw.polygon(screen, (120, 120, 130), upper_blade, 2)
+            pygame.draw.polygon(screen, (120, 120, 130), lower_blade, 2)
             
         elif weapon_type == "twin_blades":
             # Draw two small blades
