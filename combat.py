@@ -197,18 +197,26 @@ class CombatSystem:
         return True
     
     def is_in_melee_range(self, target, attack_angle: float) -> bool:
-        """Check if target is within melee attack range and arc."""
-        # Calculate distance to target
+        """Check if target is within melee attack range and arc using circle-to-circle collision."""
+        # Calculate distance between centers
         dx = target.position[0] - self.owner.position[0]
         dy = target.position[1] - self.owner.position[1]
-        distance = math.sqrt(dx**2 + dy**2)
+        center_distance = math.sqrt(dx**2 + dy**2)
         
         # Get weapon range (use weapon range multiplier if available)
         weapon_range = self.melee_range
         if hasattr(self.owner, 'inventory') and self.owner.inventory.melee_weapon:
             weapon_range = self.melee_range * self.owner.inventory.melee_weapon.range_multiplier
         
-        if distance > weapon_range:
+        # Get target and attacker radii
+        target_radius = getattr(target, 'radius', 15)  # Default radius if not available
+        attacker_radius = getattr(self.owner, 'radius', 15)  # Default radius if not available
+        
+        # Circle-to-circle collision: check if circles overlap within weapon range
+        # The weapon extends from the attacker's edge, so total range is weapon_range + target_radius
+        max_distance = weapon_range + target_radius
+        
+        if center_distance > max_distance:
             return False
         
         # Calculate angle to target

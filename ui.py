@@ -473,27 +473,58 @@ class UI:
         continue_y = text_y + 60
         self.screen.blit(continue_surface, (continue_x, continue_y))
     
-    def render_game_over(self):
-        """Render game over screen."""
+    def render_game_over(self, player, game_state):
+        """Render the game over screen with stats."""
         # Semi-transparent overlay
         overlay = pygame.Surface((self.screen_width, self.screen_height))
-        overlay.set_alpha(200)
-        overlay.fill((0, 0, 0))
+        overlay.set_alpha(180)
+        overlay.fill((20, 0, 0))  # Dark red
         self.screen.blit(overlay, (0, 0))
         
-        # Game over text
-        text = "GAME OVER"
-        text_surface = self.asset_manager.render_text(text, "large", (255, 0, 0))
-        text_x = self.screen_width // 2 - text_surface.get_width() // 2
-        text_y = self.screen_height // 2 - text_surface.get_height() // 2
-        self.screen.blit(text_surface, (text_x, text_y))
+        # Game Over title
+        title_font = pygame.font.Font(None, 72)
+        stats_font = pygame.font.Font(None, 36)
+        menu_font = pygame.font.Font(None, 48)
         
-        # Restart instruction
-        restart_text = "Press R to restart or ESC to quit"
-        restart_surface = self.asset_manager.render_text(restart_text, "medium", self.text_color)
-        restart_x = self.screen_width // 2 - restart_surface.get_width() // 2
-        restart_y = text_y + 60
-        self.screen.blit(restart_surface, (restart_x, restart_y))
+        title_text = title_font.render("GAME OVER", True, (255, 50, 50))  # Red
+        title_shadow = title_font.render("GAME OVER", True, (100, 0, 0))  # Dark red shadow
+        
+        title_x = self.screen_width // 2 - title_text.get_width() // 2
+        title_y = 100
+        
+        # Draw shadow first, then title
+        self.screen.blit(title_shadow, (title_x + 3, title_y + 3))
+        self.screen.blit(title_text, (title_x, title_y))
+        
+        # Player stats
+        stats_y_start = 220
+        stats = [
+            f"Final Level: {player.level}",
+            f"XP Gained: {player.total_xp}",
+            f"Health: {player.current_health}/{player.max_health}",
+            f"Enemies Defeated: {game_state.stats.get('enemies_defeated', 0)}",
+            f"Time Played: {int(game_state.stats.get('total_playtime', 0))}s"
+        ]
+        
+        for i, stat in enumerate(stats):
+            text = stats_font.render(stat, True, (255, 255, 255))
+            text_x = self.screen_width // 2 - text.get_width() // 2
+            text_y = stats_y_start + i * 40
+            self.screen.blit(text, (text_x, text_y))
+        
+        # Menu options
+        menu_y_start = 450
+        menu_options = [
+            "PRESS R TO RESTART",
+            "PRESS ESC TO QUIT"
+        ]
+        
+        for i, option in enumerate(menu_options):
+            color = (255, 255, 100) if i == 0 else (200, 200, 200)  # Yellow for restart
+            text = menu_font.render(option, True, color)
+            text_x = self.screen_width // 2 - text.get_width() // 2
+            text_y = menu_y_start + i * 50
+            self.screen.blit(text, (text_x, text_y))
     
     def render_inventory(self, player):
         """Render the player's equipped items."""

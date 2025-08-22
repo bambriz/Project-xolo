@@ -249,8 +249,8 @@ class Player:
         spell.use(current_time)
         
         if spell.effect == "speed_boost":  # Haste
-            # This will be handled in movement - player gets 80% speed boost while holding right click
-            print("Haste activated!")
+            # Haste works continuously while holding right-click (no activation message needed)
+            pass
             
         elif spell.effect == "area_damage":  # Power Pulse
             # Deal high damage in circle around player with 3x player length range
