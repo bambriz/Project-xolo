@@ -12,7 +12,7 @@ class GameState:
     def __init__(self):
         """Initialize game state."""
         # Game phases
-        self.phase = "playing"  # "menu", "playing", "paused", "game_over"
+        self.phase = "menu"  # "menu", "playing", "paused", "game_over"
         
         # Game settings
         self.settings = {

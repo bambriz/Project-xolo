@@ -177,6 +177,26 @@ class Game:
     
     def render(self):
         """Render all game objects to the screen."""
+        if self.game_state.phase == "menu":
+            self.ui.render_menu()
+        elif self.game_state.phase == "game_over":
+            # Render last game state in background
+            self.render_game_world()
+            # Overlay game over screen
+            self.ui.render_game_over(self.player, self.game_state)
+        elif self.game_state.phase == "playing":
+            self.render_game_world()
+            # Render UI on top
+            self.ui.render(self.player, self.level, self.visibility_system)
+            # Render pause overlay if paused
+            if self.paused:
+                self.render_pause_overlay()
+        
+        # Update display
+        pygame.display.flip()
+    
+    def render_game_world(self):
+        """Render the main game world."""
         # Clear screen
         self.screen.fill((20, 20, 20))  # Dark background
         
@@ -210,16 +230,6 @@ class Game:
         
         # Render items
         self.level.item_manager.render_items(self.screen, camera_x, camera_y, self.asset_manager)
-        
-        # Render UI (health, XP, level, etc.)
-        self.ui.render(self.player, self.level, self.visibility_system)
-        
-        # Render pause overlay if paused
-        if self.paused:
-            self.render_pause_overlay()
-        
-        # Update display
-        pygame.display.flip()
     
     def render_pause_overlay(self):
         """Render the pause screen overlay."""
@@ -249,9 +259,9 @@ class Game:
             print("You are the ultimate dungeon crawler champion!")
             return
         
-        # Create new level with increasing difficulty
-        width = 30 + self.current_level * 3
-        height = 25 + self.current_level * 2
+        # Create new level with much bigger size for better gameplay
+        width = 40 + self.current_level * 5  # Increased from 30 + level * 3
+        height = 35 + self.current_level * 4  # Increased from 25 + level * 2
         
         # Create new level
         self.level = Level(width, height, self.current_level)
@@ -278,15 +288,33 @@ class Game:
         if self.current_level % 3 == 0 or self.current_level == 10:
             self.sound_manager.play_sound('boss_spawn')
     
-    def restart_game(self):
-        """Restart the game from the beginning."""
+    def start_new_game(self):
+        """Start a new game from the menu."""
+        print("Starting new game...")
+        
+        # Reset to level 1
         self.current_level = 1
         self.level = Level(30 + self.current_level * 3, 25 + self.current_level * 2, self.current_level)
         self.player = Player(self.level.get_spawn_position())
         self.visibility_system = VisibilitySystem(self.level)
-        self.game_state = GameState()
+        
+        # Reset game state
+        self.paused = False
+        self.game_state.set_phase("playing")
+        
+        # Reset statistics
+        self.game_state.stats["enemies_defeated"] = 0
+        self.game_state.stats["total_playtime"] = 0.0
+        self.game_state.stats["levels_completed"] = 0
+        
+        # Restart background music
         self.sound_manager.play_music(self.sound_manager.get_music_for_level(self.current_level))
-        print("Game restarted!")
+        
+        print(f"New game started! Player spawned at: {self.player.position}")
+    
+    def restart_game(self):
+        """Restart the game from the beginning."""
+        self.start_new_game()
     
     def run(self):
         """Main game loop."""

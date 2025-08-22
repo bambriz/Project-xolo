@@ -36,6 +36,9 @@ class AssetManager:
         # Generate all sprites
         self.generate_sprites()
         
+        # Generate boss sprites
+        self.generate_boss_sprites()
+        
         print("Asset manager initialized with generated sprites")
     
     def generate_sprites(self):
@@ -59,83 +62,268 @@ class AssetManager:
         # Item sprites
         self.generate_item_sprites()
     
-    def create_player_sprite(self, size: int) -> pygame.Surface:
-        """Create a player sprite."""
+    def generate_boss_sprites(self):
+        """Generate boss sprites for different types."""
+        # Boss sprites (larger and more detailed)
+        self.sprites["boss_flame"] = self.create_boss_sprite(50, "flame")
+        self.sprites["boss_ice"] = self.create_boss_sprite(50, "ice")
+        self.sprites["boss_lightning"] = self.create_boss_sprite(50, "lightning")
+        self.sprites["boss_shadow"] = self.create_boss_sprite(50, "shadow")
+    
+    def create_boss_sprite(self, size: int, boss_type: str) -> pygame.Surface:
+        """Create detailed boss sprites."""
         surface = pygame.Surface((size, size), pygame.SRCALPHA)
         center = size // 2
         
-        # Main circle
-        pygame.draw.circle(surface, self.colors["player"], (center, center), center - 2)
+        if boss_type == "flame":
+            # Flame berserker (red/orange with fire effects)
+            # Main body (dark red)
+            pygame.draw.circle(surface, (150, 50, 30), (center, center), center - 2)
+            
+            # Flame crown/spikes
+            for i in range(8):
+                angle = i * 45  # 360/8 = 45 degrees
+                flame_x = center + int((center - 5) * math.cos(math.radians(angle)))
+                flame_y = center + int((center - 5) * math.sin(math.radians(angle)))
+                
+                flame_points = [
+                    (flame_x, flame_y),
+                    (flame_x - 3, flame_y + 8),
+                    (flame_x + 3, flame_y + 8)
+                ]
+                pygame.draw.polygon(surface, (255, 100, 0), flame_points)
+            
+            # Glowing core
+            pygame.draw.circle(surface, (255, 150, 50), (center, center), center//2)
+            pygame.draw.circle(surface, (255, 200, 100), (center, center), center//3)
+            
+        elif boss_type == "ice":
+            # Ice mage (blue/white with crystals)
+            # Main body (icy blue)
+            pygame.draw.circle(surface, (100, 150, 200), (center, center), center - 2)
+            
+            # Ice crystal formations
+            for i in range(6):
+                angle = i * 60  # 360/6 = 60 degrees
+                crystal_x = center + int((center - 8) * math.cos(math.radians(angle)))
+                crystal_y = center + int((center - 8) * math.sin(math.radians(angle)))
+                
+                crystal_points = [
+                    (crystal_x, crystal_y - 6),
+                    (crystal_x - 3, crystal_y + 3),
+                    (crystal_x + 3, crystal_y + 3)
+                ]
+                pygame.draw.polygon(surface, (200, 230, 255), crystal_points)
+            
+            # Frozen core
+            pygame.draw.circle(surface, (150, 200, 255), (center, center), center//2)
+            pygame.draw.circle(surface, (200, 230, 255), (center, center), center//3)
+            
+        elif boss_type == "lightning":
+            # Lightning striker (yellow/white with electric effects)
+            # Main body (electric yellow)
+            pygame.draw.circle(surface, (200, 200, 50), (center, center), center - 2)
+            
+            # Lightning bolts radiating outward
+            for i in range(4):
+                angle = i * 90  # 360/4 = 90 degrees
+                bolt_start_x = center + int((center//2) * math.cos(math.radians(angle)))
+                bolt_start_y = center + int((center//2) * math.sin(math.radians(angle)))
+                bolt_end_x = center + int((center - 3) * math.cos(math.radians(angle)))
+                bolt_end_y = center + int((center - 3) * math.sin(math.radians(angle)))
+                
+                # Jagged lightning effect
+                points = [
+                    (bolt_start_x, bolt_start_y),
+                    (bolt_start_x + 2, bolt_start_y + 4),
+                    (bolt_end_x - 2, bolt_end_y - 4),
+                    (bolt_end_x, bolt_end_y)
+                ]
+                pygame.draw.lines(surface, (255, 255, 200), False, points, 3)
+            
+            # Electric core
+            pygame.draw.circle(surface, (255, 255, 150), (center, center), center//2)
+            pygame.draw.circle(surface, (255, 255, 200), (center, center), center//3)
+            
+        elif boss_type == "shadow":
+            # Shadow lord (very dark with purple edges)
+            # Main body (almost black)
+            pygame.draw.circle(surface, (20, 10, 30), (center, center), center - 2)
+            
+            # Shadow tendrils
+            for i in range(12):
+                angle = i * 30  # 360/12 = 30 degrees
+                tendril_length = center - 5 + (i % 3) * 2
+                tendril_x = center + int(tendril_length * math.cos(math.radians(angle)))
+                tendril_y = center + int(tendril_length * math.sin(math.radians(angle)))
+                
+                pygame.draw.line(surface, (60, 30, 80), 
+                               (center, center), (tendril_x, tendril_y), 2)
+            
+            # Dark core with purple glow
+            pygame.draw.circle(surface, (40, 20, 60), (center, center), center//2)
+            pygame.draw.circle(surface, (80, 40, 100), (center, center), center//3)
+            
+        # Boss outline (golden for all bosses)
+        pygame.draw.circle(surface, (255, 215, 0), (center, center), center - 2, 3)
         
-        # White outline
-        pygame.draw.circle(surface, (255, 255, 255), (center, center), center - 2, 2)
+        return surface
+    
+    def create_player_sprite(self, size: int) -> pygame.Surface:
+        """Create a detailed player sprite resembling a knight."""
+        surface = pygame.Surface((size, size), pygame.SRCALPHA)
+        center = size // 2
         
-        # Eyes
-        eye_size = max(2, size // 8)
-        eye_offset = size // 4
-        pygame.draw.circle(surface, (255, 255, 255), 
-                         (center - eye_offset, center - eye_offset), eye_size)
-        pygame.draw.circle(surface, (255, 255, 255), 
-                         (center + eye_offset, center - eye_offset), eye_size)
+        # Body (blue armor)
+        pygame.draw.circle(surface, (70, 130, 200), (center, center), center - 3)
         
-        # Pupils
-        pupil_size = max(1, eye_size // 2)
-        pygame.draw.circle(surface, (0, 0, 0), 
-                         (center - eye_offset, center - eye_offset), pupil_size)
-        pygame.draw.circle(surface, (0, 0, 0), 
-                         (center + eye_offset, center - eye_offset), pupil_size)
+        # Armor segments (darker blue lines)
+        pygame.draw.circle(surface, (50, 100, 160), (center, center), center - 3, 2)
+        pygame.draw.line(surface, (50, 100, 160), 
+                        (center - center//2, center), (center + center//2, center), 2)
+        
+        # Helmet (silver/gray)
+        helmet_size = center - 6
+        pygame.draw.circle(surface, (180, 180, 200), (center, center - 3), helmet_size)
+        
+        # Helmet visor (horizontal slit)
+        visor_y = center - 5
+        pygame.draw.line(surface, (30, 30, 30), 
+                        (center - helmet_size//2, visor_y), 
+                        (center + helmet_size//2, visor_y), 3)
+        
+        # Glowing eyes through visor
+        eye_glow = max(1, size // 12)
+        pygame.draw.circle(surface, (100, 200, 255), 
+                         (center - helmet_size//3, visor_y), eye_glow)
+        pygame.draw.circle(surface, (100, 200, 255), 
+                         (center + helmet_size//3, visor_y), eye_glow)
+        
+        # Cape/cloak behind (dark red)
+        cape_points = [
+            (center - center//3, center + center//2),
+            (center - center//2, center + center - 2),
+            (center + center//2, center + center - 2),
+            (center + center//3, center + center//2)
+        ]
+        pygame.draw.polygon(surface, (120, 40, 40), cape_points)
+        
+        # Armor outline (bright silver)
+        pygame.draw.circle(surface, (220, 220, 240), (center, center), center - 3, 2)
         
         return surface
     
     def create_enemy_sprite(self, size: int, enemy_type: str) -> pygame.Surface:
-        """Create an enemy sprite based on type."""
+        """Create detailed enemy sprites based on type."""
         surface = pygame.Surface((size, size), pygame.SRCALPHA)
         center = size // 2
-        color = self.colors.get(f"enemy_{enemy_type}", (200, 100, 100))
         
-        # Main circle
-        pygame.draw.circle(surface, color, (center, center), center - 1)
-        
-        # White outline
-        pygame.draw.circle(surface, (255, 255, 255), (center, center), center - 1, 1)
-        
-        # Type-specific features
         if enemy_type == "basic":
-            # Simple angry eyes
-            eye_size = max(1, size // 10)
-            pygame.draw.circle(surface, (255, 0, 0), 
-                             (center - size // 4, center - size // 4), eye_size)
-            pygame.draw.circle(surface, (255, 0, 0), 
-                             (center + size // 4, center - size // 4), eye_size)
+            # Skeleton warrior (bone white with red eyes)
+            # Body/ribcage
+            pygame.draw.circle(surface, (230, 230, 220), (center, center), center - 2)
+            
+            # Ribcage lines
+            for i in range(3):
+                y = center - 4 + i * 3
+                pygame.draw.line(surface, (200, 200, 190), 
+                               (center - center//2, y), (center + center//2, y), 1)
+            
+            # Skull
+            pygame.draw.circle(surface, (240, 240, 230), (center, center - 3), center//2)
+            
+            # Glowing red eye sockets
+            eye_size = max(2, size // 12)
+            pygame.draw.circle(surface, (255, 50, 50), 
+                             (center - center//4, center - 4), eye_size)
+            pygame.draw.circle(surface, (255, 50, 50), 
+                             (center + center//4, center - 4), eye_size)
+            
+            # Dark outline
+            pygame.draw.circle(surface, (100, 100, 90), (center, center), center - 2, 1)
         
         elif enemy_type == "fast":
-            # Lightning bolt pattern
-            points = [
-                (center - size // 4, center - size // 3),
-                (center, center - size // 6),
-                (center - size // 6, center),
-                (center + size // 4, center + size // 3),
-                (center, center + size // 6),
-                (center + size // 6, center)
-            ]
-            pygame.draw.polygon(surface, (255, 255, 255), points)
+            # Shadow assassin (dark with glowing edges)
+            # Main body (very dark purple)
+            pygame.draw.circle(surface, (40, 20, 60), (center, center), center - 1)
+            
+            # Glowing purple outline
+            pygame.draw.circle(surface, (120, 80, 180), (center, center), center - 1, 2)
+            
+            # Speed trail effect
+            for i in range(3):
+                trail_x = center - (i + 1) * 2
+                trail_alpha = 255 - i * 60
+                trail_surface = pygame.Surface((size//3, size), pygame.SRCALPHA)
+                pygame.draw.ellipse(trail_surface, (120, 80, 180, trail_alpha), 
+                                  (0, 0, size//3, size))
+                surface.blit(trail_surface, (trail_x, 0))
+            
+            # Glowing eyes
+            pygame.draw.circle(surface, (200, 150, 255), 
+                             (center - center//4, center - center//3), 2)
+            pygame.draw.circle(surface, (200, 150, 255), 
+                             (center + center//4, center - center//3), 2)
         
         elif enemy_type == "heavy":
-            # Armor-like segments
+            # Armored orc (gray/green armor)
+            # Main body (dark green)
+            pygame.draw.circle(surface, (80, 120, 80), (center, center), center - 1)
+            
+            # Armor plates (overlapping gray rectangles)
+            plate_width = size // 3
             for i in range(3):
-                radius = center - 2 - i * 3
-                if radius > 0:
-                    pygame.draw.circle(surface, (200, 200, 200), (center, center), radius, 1)
+                y_offset = center - 6 + i * 4
+                pygame.draw.rect(surface, (160, 160, 160), 
+                               (center - plate_width//2, y_offset, plate_width, 3))
+            
+            # Heavy helmet spikes
+            spike_points = [
+                (center, center - center + 2),
+                (center - 3, center - center//2),
+                (center + 3, center - center//2)
+            ]
+            pygame.draw.polygon(surface, (100, 100, 100), spike_points)
+            
+            # Red eyes through helmet
+            pygame.draw.circle(surface, (255, 100, 100), 
+                             (center - center//4, center - center//3), 2)
+            pygame.draw.circle(surface, (255, 100, 100), 
+                             (center + center//4, center - center//3), 2)
+            
+            # Thick armor outline
+            pygame.draw.circle(surface, (120, 120, 120), (center, center), center - 1, 2)
         
         elif enemy_type == "ranged":
-            # Crosshair
-            line_length = size // 3
-            pygame.draw.line(surface, (255, 255, 255), 
-                           (center - line_length, center), 
-                           (center + line_length, center), 2)
-            pygame.draw.line(surface, (255, 255, 255), 
-                           (center, center - line_length), 
-                           (center, center + line_length), 2)
+            # Dark archer/mage (purple robes)
+            # Main body (dark purple robe)
+            pygame.draw.circle(surface, (60, 40, 80), (center, center), center - 1)
+            
+            # Hood
+            hood_points = [
+                (center - center//2, center - center//2),
+                (center, center - center + 1),
+                (center + center//2, center - center//2),
+                (center, center)
+            ]
+            pygame.draw.polygon(surface, (40, 20, 60), hood_points)
+            
+            # Magical orb/focus (glowing blue)
+            orb_size = max(3, size // 8)
+            pygame.draw.circle(surface, (100, 150, 255), 
+                             (center, center + center//3), orb_size)
+            pygame.draw.circle(surface, (150, 200, 255), 
+                             (center, center + center//3), orb_size - 1)
+            
+            # Glowing eyes under hood
+            pygame.draw.circle(surface, (150, 100, 255), 
+                             (center - center//4, center - center//4), 1)
+            pygame.draw.circle(surface, (150, 100, 255), 
+                             (center + center//4, center - center//4), 1)
+            
+            # Dark robe outline
+            pygame.draw.circle(surface, (80, 60, 100), (center, center), center - 1, 1)
+        
         
         return surface
     

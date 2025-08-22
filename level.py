@@ -43,9 +43,9 @@ class Level:
         self.tiles: List[List[Tile]] = []
         self.spawn_position = (0, 0)
         
-        # Enemy management
+        # Enemy management (significantly increased for more engaging gameplay)
         self.enemies = []
-        self.max_enemies = 8 + player_level * 2
+        self.max_enemies = 15 + player_level * 4  # Increased from 8 + player_level * 2
         self.boss = None
         
         # Level progression items
@@ -101,8 +101,8 @@ class Level:
         """Generate random rooms. Returns list of (x, y, width, height) tuples."""
         rooms = []
         attempts = 100
-        min_room_size = min(4, max(2, self.width // 4))
-        max_room_size = min(12, max(min_room_size + 1, self.width // 3, self.height // 3))
+        min_room_size = min(6, max(3, self.width // 6))  # Larger minimum rooms
+        max_room_size = min(18, max(min_room_size + 2, self.width // 2, self.height // 2))  # Bigger maximum rooms
         
         for _ in range(attempts):
             # Random room size and position
