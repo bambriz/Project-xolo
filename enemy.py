@@ -50,6 +50,10 @@ class Enemy:
         
         print(f"Created {enemy_type} enemy (level {player_level}) with {self.current_health} HP")
     
+    def add_hit_effect(self):
+        """Add a visual hit effect when the enemy takes damage."""
+        self.hit_effect_time = self.hit_effect_duration
+    
     def setup_stats(self, enemy_type: str, player_level: int):
         """Set up enemy stats based on type and player level."""
         base_stats = {
