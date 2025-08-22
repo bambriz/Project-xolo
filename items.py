@@ -344,7 +344,7 @@ class ItemManager:
     
     def spawn_random_items(self):
         """Spawn random items throughout the level."""
-        num_items = random.randint(6, 12)  # Increased from 3-7 to 6-12 items per level
+        num_items = random.randint(10, 18)  # Increased to 10-18 items per level for more fun gameplay
         
         for _ in range(num_items):
             # Random item type
@@ -410,8 +410,8 @@ class ItemManager:
     def drop_enemy_loot(self, enemy_position: Tuple[float, float], is_boss: bool = False):
         """Drop health items when enemy dies."""
         if is_boss:
-            # Bosses drop 2-4 health items as requested
-            num_drops = random.randint(2, 4)
+            # Bosses drop 3-6 health items for more rewarding encounters
+            num_drops = random.randint(3, 6)
             for i in range(num_drops):
                 # Spread drops around boss position
                 offset_x = random.uniform(-40, 40)
@@ -420,7 +420,7 @@ class ItemManager:
                 self.drop_health_item(drop_pos)
         else:
             # Regular enemies have a chance to drop 1 health item
-            if random.random() < 0.7:  # Increased from 40% to 70% chance to drop health
+            if random.random() < 0.85:  # Increased to 85% chance to drop health for more frequent loot
                 # Small random offset from enemy position
                 offset_x = random.uniform(-20, 20)
                 offset_y = random.uniform(-20, 20)

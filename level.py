@@ -47,7 +47,7 @@ class Level:
         
         # Enemy management (significantly increased for more engaging gameplay)
         self.enemies = []
-        self.max_enemies = 15 + player_level * 4  # Increased from 8 + player_level * 2
+        self.max_enemies = 18 + player_level * 5  # Increased to balance more frequent item drops
         self.boss = None
         
         # Level progression items
