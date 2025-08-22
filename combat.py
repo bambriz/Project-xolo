@@ -57,6 +57,14 @@ class Projectile:
         # Remove if lifetime exceeded
         return self.age < self.lifetime
     
+    def should_remove(self) -> bool:
+        """Check if projectile should be removed (for compatibility)."""
+        return self.age >= self.lifetime
+    
+    def check_collision_with_target(self, target, target_radius: float) -> bool:
+        """Check collision with target for compatibility."""
+        return self.check_collision(target.position, target_radius)
+    
     def check_collision(self, target_pos: Tuple[float, float], target_radius: float) -> bool:
         """Check if projectile collides with a circular target."""
         dx = self.position[0] - target_pos[0]

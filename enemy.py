@@ -37,9 +37,19 @@ class Enemy:
         # Set weapon based on enemy type
         self.setup_weapon(enemy_type)
         
-        # Pathfinding
+        # Pathfinding and roaming
         self.path_update_timer = 0
         self.path_update_interval = 0.5  # Update path every 0.5 seconds
+        self.spawn_position = list(position)  # Remember spawn location
+        self.roam_radius = 120  # How far from spawn to roam
+        self.roam_target = None
+        self.roam_timer = 0
+        self.roam_interval = random.uniform(3, 6)  # Change roam target every 3-6 seconds
+        
+        # Vision and raycasting
+        self.vision_range = 180  # How far enemy can see
+        self.last_raycast_time = 0
+        self.raycast_interval = 0.3  # Raycast every 0.3 seconds
         
         # Visual
         self.setup_appearance()
@@ -110,20 +120,20 @@ class Enemy:
         weapon_configs = {
             "basic": {  # Weakest - uses fist
                 "weapon_type": "fist",
-                "range": 30,  # Match player base range
-                "arc": 60,
+                "range": 35,  # Increased range for better collision
+                "arc": 90,  # Wider arc
                 "speed_multiplier": 1.0
             },
-            "fast": {  # Dagger - low damage, low range, 100 degree range, super fast
+            "fast": {  # Dagger - low damage, increased range, 120 degree range, super fast
                 "weapon_type": "dagger",
-                "range": 30,  # Match player base range
-                "arc": 100,
+                "range": 35,  # Increased range for better collision
+                "arc": 120,  # Wider arc for dagger
                 "speed_multiplier": 2.0,
                 "damage_multiplier": 0.8
             },
             "heavy": {  # Uses mace, spear, or sword
                 "weapon_type": random.choice(["mace", "spear", "sword"]),
-                "range": 33,  # Match player mace range (30 * 1.1)
+                "range": 40,  # Increased range for better collision
                 "arc": 145,  # Match updated mace arc
                 "speed_multiplier": 0.8
             },
@@ -201,18 +211,51 @@ class Enemy:
                 if animation['lifetime'] <= 0:
                     self.attack_animations.remove(animation)
     
+    def raycast_to_player(self, player, level) -> bool:
+        """Use raycasting to check if enemy has line of sight to player."""
+        # Check distance first
+        dx = player.position[0] - self.position[0]
+        dy = player.position[1] - self.position[1]
+        distance = math.sqrt(dx * dx + dy * dy)
+        
+        if distance > self.vision_range:
+            return False
+        
+        # Raycast from enemy to player
+        steps = int(distance / (level.tile_size / 4))  # Quarter-tile steps for accuracy
+        
+        for i in range(1, steps):
+            progress = i / steps
+            check_x = self.position[0] + dx * progress
+            check_y = self.position[1] + dy * progress
+            
+            # Check if this point is in a wall
+            if level.check_wall_collision((check_x, check_y), 1):
+                return False
+        
+        return True
+    
     def update_ai_state(self, player, can_see_player: bool, current_time: float):
-        """Update AI state based on player visibility and distance."""
+        """Enhanced AI state based on player visibility, distance, and raycasting."""
         player_distance = self.distance_to_player(player)
         
-        if can_see_player:
-            self.last_seen_player_pos = player.position[:]
-            self.last_player_seen_time = current_time
-            
-            if player_distance <= self.attack_range:
-                self.state = "attacking"
+        # Enhanced line of sight check with raycasting
+        if can_see_player and player_distance <= self.vision_range:
+            # Use raycasting for more accurate vision
+            if current_time - self.last_raycast_time >= self.raycast_interval:
+                self.last_raycast_time = current_time
+                has_line_of_sight = True  # Assume visibility system already handles basic LOS
             else:
-                self.state = "chasing"
+                has_line_of_sight = self.last_seen_player_pos is not None
+            
+            if has_line_of_sight:
+                self.last_seen_player_pos = player.position[:]
+                self.last_player_seen_time = current_time
+                
+                if player_distance <= self.attack_range:
+                    self.state = "attacking"
+                else:
+                    self.state = "chasing"
         
         elif self.state == "chasing" and self.last_seen_player_pos:
             # Continue chasing last known position for a while
@@ -228,12 +271,35 @@ class Enemy:
                 self.state = "idle"
     
     def idle_behavior(self, dt: float):
-        """Idle behavior - minimal movement."""
-        # Occasionally move randomly
-        if random.random() < 0.1 * dt:  # 10% chance per second
+        """Improved idle behavior with smart roaming around spawn area."""
+        self.roam_timer += dt
+        
+        # Check if we need a new roam target
+        if self.roam_timer >= self.roam_interval or not self.roam_target:
+            self.roam_timer = 0
+            self.roam_interval = random.uniform(3, 6)
+            
+            # Pick a random point within roam radius from spawn
             angle = random.uniform(0, 2 * math.pi)
-            self.velocity[0] = math.cos(angle) * self.speed * 0.3
-            self.velocity[1] = math.sin(angle) * self.speed * 0.3
+            distance = random.uniform(20, self.roam_radius)
+            
+            new_x = self.spawn_position[0] + math.cos(angle) * distance
+            new_y = self.spawn_position[1] + math.sin(angle) * distance
+            self.roam_target = [new_x, new_y]
+        
+        # Move towards roam target
+        if self.roam_target:
+            dx = self.roam_target[0] - self.position[0]
+            dy = self.roam_target[1] - self.position[1]
+            distance = math.sqrt(dx * dx + dy * dy)
+            
+            if distance > 10:  # Move if not close enough
+                self.velocity[0] = (dx / distance) * self.speed * 0.4  # Slower roaming
+                self.velocity[1] = (dy / distance) * self.speed * 0.4
+            else:
+                # Reached target, stop and wait
+                self.velocity[0] *= 0.8
+                self.velocity[1] *= 0.8
         else:
             # Gradually stop moving
             self.velocity[0] *= 0.9
@@ -429,23 +495,24 @@ class Enemy:
                             (x - bar_width // 2, y, health_width, bar_height))
     
     def create_attack_animation(self, attack_angle: float):
-        """Create a visual effect for enemy weapon attack."""
+        """Create enhanced visual effect for enemy weapon attack matching player animations."""
         if not hasattr(self, 'attack_animations'):
             self.attack_animations = []
         
-        # Create animation based on weapon type
+        # Create animation based on weapon type (matching player system)
         if self.weapon_type == "sword":
             animation = {
-                'type': 'enemy_sword_swing',
+                'type': 'weapon_swing',
                 'angle': attack_angle,
                 'lifetime': 0.25,
                 'max_lifetime': 0.25,
+                'arc': math.radians(self.weapon_arc),
                 'range': self.weapon_range,
                 'color': (150, 150, 200)  # Light blue
             }
         elif self.weapon_type == "spear":
             animation = {
-                'type': 'enemy_spear_poke',
+                'type': 'spear_poke',
                 'angle': attack_angle,
                 'lifetime': 0.15,
                 'max_lifetime': 0.15,
@@ -454,30 +521,32 @@ class Enemy:
             }
         elif self.weapon_type == "mace":
             animation = {
-                'type': 'enemy_mace_swing',
+                'type': 'weapon_swing',
                 'angle': attack_angle,
                 'lifetime': 0.25,
                 'max_lifetime': 0.25,
+                'arc': math.radians(self.weapon_arc),
                 'range': self.weapon_range,
                 'color': (128, 128, 128)  # Gray
             }
         elif self.weapon_type == "dagger":
             animation = {
-                'type': 'enemy_dagger_stab',
+                'type': 'dagger_thrust',
                 'angle': attack_angle,
-                'lifetime': 0.12,
-                'max_lifetime': 0.12,
+                'lifetime': 0.15,  # Faster like player dagger
+                'max_lifetime': 0.15,
                 'range': self.weapon_range,
-                'color': (180, 180, 180)  # Silver
+                'color': (200, 200, 220),  # Bright silver
+                'arc': math.radians(self.weapon_arc)
             }
         else:  # fist or default
             animation = {
-                'type': 'enemy_punch',
+                'type': 'fist_punch',
                 'angle': attack_angle,
                 'lifetime': 0.2,
                 'max_lifetime': 0.2,
                 'range': self.weapon_range,
-                'color': self.color  # Use enemy color
+                'color': (255, 150, 150)  # Light red for fist
             }
         
         self.attack_animations.append(animation)

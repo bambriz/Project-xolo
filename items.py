@@ -178,9 +178,9 @@ class Spell(Item):
             },
             SpellType.POWER_PULSE: {
                 "name": "Power Pulse",
-                "description": "High damage in circle around player",
+                "description": "Massive damage in wide circle around player",
                 "color": (255, 100, 255),  # Magenta
-                "cooldown": 8.0,  # Long cooldown
+                "cooldown": 12.0,  # Longer cooldown for increased power
                 "effect": "area_damage"
             },
             SpellType.TURN_COAT: {
