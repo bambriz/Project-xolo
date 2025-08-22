@@ -72,7 +72,7 @@ class Boss(Enemy):
         
         # Enhanced physical stats
         self.radius = 20 if self.boss_type == "shadow_lord" else 16
-        self.speed *= 0.8  # Bosses are slower but hit harder
+        self.speed *= 1.3  # Bosses are now faster and more aggressive (was 0.8)
         self.attack_range *= 1.2
     
     def setup_boss_abilities(self):
@@ -135,10 +135,10 @@ class Boss(Enemy):
     def enrage(self):
         """Activate enrage mode - increased speed and attack rate."""
         self.enraged = True
-        self.speed *= 1.5
-        self.attack_cooldown *= 0.7
-        self.special_attack_cooldown *= 0.8
-        print(f"Boss {self.boss_type} is now ENRAGED!")
+        self.speed *= 2.0  # Even faster when enraged (was 1.5)
+        self.attack_cooldown *= 0.5  # Much faster attacks (was 0.7)
+        self.special_attack_cooldown *= 0.6  # Faster specials (was 0.8)
+        print(f"Boss {self.boss_type} is now ENRAGED! Max speed and aggression!")
     
     def use_special_ability(self, player, current_time: float, level):
         """Use boss-specific special abilities."""

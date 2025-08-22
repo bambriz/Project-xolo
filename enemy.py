@@ -19,7 +19,7 @@ class Enemy:
         self.radius = 12
         
         # AI state
-        self.state = "idle"  # Enhanced states: idle, chasing, attacking, mind_controlled, kiting, flanking
+        self.state = "idle"  # Enhanced states: idle, chasing, attacking, mind_controlled, kiting, flanking, knocked_back
         self.ai_strategy = self.determine_ai_strategy()  # Strategy based on enemy type
         self.target_position = None
         self.last_seen_player_pos = None
@@ -60,11 +60,36 @@ class Enemy:
         self.hit_effect_time = 0.0
         self.hit_effect_duration = 0.3  # Flash for 0.3 seconds when hit
         
+        # Knockback state
+        self.knocked_back = False
+        self.knockback_timer = 0.0
+        self.knockback_duration = 1.2  # Pause for 1.2 seconds after knockback
+        self.knockback_velocity = [0.0, 0.0]
+        self.knockback_speed = 200.0  # Speed of knockback movement
+        self.knockback_immunity = False  # Can't be knocked back again while immune
+        
         print(f"Created {enemy_type} enemy (level {player_level}) with {self.current_health} HP")
     
     def add_hit_effect(self):
         """Add a visual hit effect when the enemy takes damage."""
         self.hit_effect_time = self.hit_effect_duration
+        
+    def apply_knockback(self, direction_angle: float, force: float):
+        """Apply smooth knockback to the enemy."""
+        if self.knocked_back or self.knockback_immunity:
+            return  # Can't be knocked back while already in knockback state or immune
+            
+        # Enter knockback state
+        self.knocked_back = True
+        self.knockback_timer = self.knockback_duration
+        self.knockback_immunity = True  # Become immune to more knockback
+        self.state = "knocked_back"
+        
+        # Calculate knockback velocity
+        self.knockback_velocity[0] = math.cos(direction_angle) * force
+        self.knockback_velocity[1] = math.sin(direction_angle) * force
+        
+        print(f"{self.enemy_type} enemy knocked back for {self.knockback_duration}s")
     
     def setup_stats(self, enemy_type: str, player_level: int):
         """Set up enemy stats based on type and player level."""
@@ -267,9 +292,16 @@ class Enemy:
             self.kiting_behavior(dt, player, current_time)
         elif self.state == "flanking":
             self.flanking_behavior(dt, player, current_time)
+        elif self.state == "knocked_back":
+            self.update_knockback(dt)
+            return  # Skip other updates while knocked back
         
         # Apply movement
         self.apply_movement(dt, level)
+        
+        # Clear knockback immunity after recovery
+        if self.knockback_immunity and not self.knocked_back:
+            self.knockback_immunity = False
         
         # Update attack animations
         if hasattr(self, 'attack_animations'):
@@ -277,6 +309,31 @@ class Enemy:
                 animation['lifetime'] -= dt
                 if animation['lifetime'] <= 0:
                     self.attack_animations.remove(animation)
+                    
+    def update_knockback(self, dt: float):
+        """Handle knockback state updates."""
+        self.knockback_timer -= dt
+        
+        if self.knockback_timer > 0.8:  # First 0.4s: move back quickly
+            # Apply knockback velocity with decay
+            self.velocity[0] = self.knockback_velocity[0]
+            self.velocity[1] = self.knockback_velocity[1]
+            
+            # Reduce knockback velocity over time
+            self.knockback_velocity[0] *= 0.85
+            self.knockback_velocity[1] *= 0.85
+        else:
+            # Stop moving and pause
+            self.velocity[0] = 0
+            self.velocity[1] = 0
+            
+        if self.knockback_timer <= 0:
+            # End knockback state
+            self.knocked_back = False
+            self.state = "idle"
+            self.velocity[0] = 0
+            self.velocity[1] = 0
+            print(f"{self.enemy_type} enemy recovered from knockback")
     
     def raycast_to_player(self, player, level) -> bool:
         """Use raycasting to check if enemy has line of sight to player."""

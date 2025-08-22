@@ -404,6 +404,7 @@ class AssetManager:
         self.sprites["item_sword"] = self.create_item_sprite(24, "sword", (200, 200, 255))
         self.sprites["item_spear"] = self.create_item_sprite(24, "spear", (160, 82, 45))
         self.sprites["item_mace"] = self.create_item_sprite(24, "mace", (128, 128, 128))
+        self.sprites["item_war_axe"] = self.create_item_sprite(24, "war_axe", (180, 50, 50))
         
         # Enchantments  
         self.sprites["item_red_enchantment"] = self.create_item_sprite(24, "diamond", (255, 100, 100))
@@ -415,6 +416,11 @@ class AssetManager:
         self.sprites["item_haste_spell"] = self.create_item_sprite(24, "star", (100, 255, 255))
         self.sprites["item_power_pulse"] = self.create_item_sprite(24, "star", (255, 100, 255))
         self.sprites["item_turn_coat"] = self.create_item_sprite(24, "star", (255, 165, 0))
+        self.sprites["item_void_blast"] = self.create_item_sprite(24, "void_star", (150, 50, 200))
+        self.sprites["item_heal_burst"] = self.create_item_sprite(24, "healing_star", (255, 255, 255))
+        
+        # Health packs
+        self.sprites["health_pack"] = self.create_item_sprite(20, "health_cross", (50, 200, 50))
     
     def create_item_sprite(self, size: int, shape: str, color: Tuple[int, int, int]) -> pygame.Surface:
         """Create an item sprite based on shape and color."""
@@ -453,6 +459,62 @@ class AssetManager:
                 x = center + 5 * math.cos(math.radians(angle))
                 y = center - 3 + 5 * math.sin(math.radians(angle))
                 pygame.draw.circle(surface, (200, 200, 200), (int(x), int(y)), 2)
+                
+        elif shape == "war_axe":
+            # War axe shape - handle with curved blade
+            pygame.draw.line(surface, (139, 69, 19), (center, center + 6), (center, size - 2), 3)
+            # Axe head (asymmetric blade)
+            blade_points = [
+                (center, center - 4),
+                (center - 8, center + 2),
+                (center - 6, center + 6),
+                (center + 6, center + 6),
+                (center + 8, center + 2)
+            ]
+            pygame.draw.polygon(surface, color, blade_points)
+            pygame.draw.polygon(surface, (150, 30, 30), blade_points, 2)
+            
+        elif shape == "void_star":
+            # Dark void star with swirling effect
+            points = []
+            for i in range(10):
+                angle = i * math.pi / 5
+                if i % 2 == 0:
+                    radius = center - 2
+                else:
+                    radius = (center - 2) // 3
+                x = center + radius * math.cos(angle - math.pi/2)
+                y = center + radius * math.sin(angle - math.pi/2)
+                points.append((x, y))
+            pygame.draw.polygon(surface, color, points)
+            pygame.draw.polygon(surface, (100, 30, 150), points, 2)
+            # Dark center
+            pygame.draw.circle(surface, (50, 20, 80), (center, center), 4)
+            
+        elif shape == "healing_star":
+            # Bright healing star with cross
+            points = []
+            for i in range(8):
+                angle = i * math.pi / 4
+                radius = center - 3 if i % 2 == 0 else (center - 3) // 2
+                x = center + radius * math.cos(angle)
+                y = center + radius * math.sin(angle)
+                points.append((x, y))
+            pygame.draw.polygon(surface, color, points)
+            pygame.draw.polygon(surface, (200, 200, 100), points, 1)
+            # Healing cross in center
+            pygame.draw.line(surface, (255, 255, 100), (center - 4, center), (center + 4, center), 2)
+            pygame.draw.line(surface, (255, 255, 100), (center, center - 4), (center, center + 4), 2)
+            
+        elif shape == "health_cross":
+            # Medical cross shape for health packs
+            # Horizontal bar
+            pygame.draw.rect(surface, color, (center - 8, center - 3, 16, 6))
+            # Vertical bar
+            pygame.draw.rect(surface, color, (center - 3, center - 8, 6, 16))
+            # White outline
+            pygame.draw.rect(surface, (255, 255, 255), (center - 8, center - 3, 16, 6), 1)
+            pygame.draw.rect(surface, (255, 255, 255), (center - 3, center - 8, 6, 16), 1)
                 
         elif shape == "diamond":
             # Diamond shape for enchantments

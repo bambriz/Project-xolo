@@ -58,8 +58,8 @@ class NotificationManager:
     def __init__(self, screen_width: int):
         self.notifications: List[Notification] = []
         self.screen_width = screen_width
-        self.base_x = screen_width // 2 - 200  # Center horizontally (approximate)
-        self.base_y = 200  # More centered vertically
+        self.base_x = 0  # Will be calculated per text for true centering
+        self.base_y = screen_width // 4  # Better vertical positioning
     
     def add_pickup_notification(self, item_name: str, description: str):
         """Add an item pickup notification."""

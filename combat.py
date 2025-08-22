@@ -156,10 +156,14 @@ class CombatSystem:
                 elif hasattr(enemy, 'hit_effect_time'):
                     enemy.hit_effect_time = pygame.time.get_ticks() / 1000.0
                 
-                # Apply knockback if weapon has it
+                # Apply smooth knockback if weapon has it
                 if weapon and hasattr(weapon, 'knockback') and weapon.knockback and hasattr(weapon, 'knockback_distance'):
-                    self.apply_knockback(enemy, attack_angle, weapon.knockback_distance, level)
-                    print(f"Applied knockback: {weapon.knockback_distance} distance")
+                    if hasattr(enemy, 'apply_knockback'):
+                        enemy.apply_knockback(attack_angle, weapon.knockback_distance)
+                    else:
+                        # Fallback to old system for compatibility
+                        self.apply_knockback(enemy, attack_angle, weapon.knockback_distance, level)
+                    print(f"Applied smooth knockback: {weapon.knockback_distance} force")
                 
                 damage_dealt = True
                 print(f"Melee hit! Dealt {self.owner.damage} damage to {enemy.enemy_type}")
@@ -176,9 +180,13 @@ class CombatSystem:
             elif hasattr(level.boss, 'hit_effect_time'):
                 level.boss.hit_effect_time = pygame.time.get_ticks() / 1000.0
             
-            # Apply knockback to boss if weapon has it (though bosses might resist)
+            # Apply smooth knockback to boss if weapon has it (reduced effect)
             if weapon and hasattr(weapon, 'knockback') and weapon.knockback:
-                self.apply_knockback(level.boss, attack_angle, weapon.knockback_distance // 2, level)  # Reduced knockback for boss
+                if hasattr(level.boss, 'apply_knockback'):
+                    level.boss.apply_knockback(attack_angle, weapon.knockback_distance // 3)  # Bosses resist more
+                else:
+                    # Fallback to old system for compatibility
+                    self.apply_knockback(level.boss, attack_angle, weapon.knockback_distance // 2, level)
             
             damage_dealt = True
             print(f"Melee hit! Dealt {self.owner.damage} damage to {level.boss.boss_type} boss")

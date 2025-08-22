@@ -454,10 +454,10 @@ class Player:
             norm_dx = dx / distance
             norm_dy = dy / distance
             
-            # Arrow properties
-            arrow_distance = self.radius + 25  # Distance from player center
-            arrow_length = 15  # Length of arrow
-            arrow_width = 8   # Width of arrowhead
+            # Arrow properties - minimal design
+            arrow_distance = self.radius + 20  # Closer to player (was 25)
+            arrow_length = 10  # Shorter arrow (was 15)
+            arrow_width = 5   # Narrower arrowhead (was 8)
             
             # Calculate arrow tip position
             tip_x = screen_x + norm_dx * arrow_distance
@@ -483,19 +483,19 @@ class Player:
                 (int(wing2_x), int(wing2_y))  # Wing 2
             ]
             
-            # Arrow color - bright white with slight transparency effect
-            arrow_color = (255, 255, 255)
-            outline_color = (100, 100, 100)
+            # Arrow color - subtle cyan with dark outline
+            arrow_color = (100, 200, 255)  # Subtle cyan
+            outline_color = (40, 40, 40)   # Dark outline
             
-            # Draw arrow body (line from player edge to base)
+            # Draw minimal arrow body (thinner line)
             edge_x = screen_x + norm_dx * (self.radius + 2)
             edge_y = screen_y + norm_dy * (self.radius + 2)
             pygame.draw.line(screen, arrow_color, (int(edge_x), int(edge_y)), 
-                           (int(base_x), int(base_y)), 3)
+                           (int(base_x), int(base_y)), 2)  # Thinner line (was 3)
             
-            # Draw arrowhead
+            # Draw minimal arrowhead
             pygame.draw.polygon(screen, arrow_color, arrow_points)
-            pygame.draw.polygon(screen, outline_color, arrow_points, 2)
+            pygame.draw.polygon(screen, outline_color, arrow_points, 1)  # Thinner outline
     
     def draw_health_bar(self, screen: pygame.Surface, x: int, y: int):
         """Draw a health bar above the player."""
