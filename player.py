@@ -23,6 +23,7 @@ class Player:
         # Base stats
         self.level = 1
         self.xp = 0
+        self.total_xp = 0  # Track total XP earned for stats
         self.xp_to_next_level = 100
         
         # Health system
@@ -208,6 +209,7 @@ class Player:
     def gain_xp(self, amount: int):
         """Gain XP and handle leveling up."""
         self.xp += amount
+        self.total_xp += amount  # Track total XP for stats
         
         # Check for level up
         while self.xp >= self.xp_to_next_level:

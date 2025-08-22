@@ -21,6 +21,7 @@ class MeleeWeaponType(Enum):
     SWORD = "sword"
     SPEAR = "spear"
     MACE = "mace"
+    WAR_AXE = "war_axe"  # NEW: High damage, wide arc weapon
 
 class EnchantmentType(Enum):
     """Types of enchantments."""
@@ -28,12 +29,16 @@ class EnchantmentType(Enum):
     YELLOW = "yellow"  # Reduces enemy max HP by 15%
     GREEN = "green"    # Slows enemy speed by 25%
     BLACK = "black"    # Reduces damage taken by 10%
+    BLUE = "blue"     # NEW: Reduces spell cooldowns by 30%
+    PURPLE = "purple"   # NEW: Increases critical hit chance by 15%
 
 class SpellType(Enum):
     """Types of spells that replace right-click behavior."""
     HASTE = "haste"          # Increases player speed by 25% while holding right click
     POWER_PULSE = "power_pulse"  # Long cooldown, high damage in circle around player
     TURN_COAT = "turn_coat"      # Medium cooldown, makes enemy attack other enemies
+    SHIELD = "shield"        # NEW: Temporary invulnerability
+    LIGHTNING_STORM = "lightning_storm"  # NEW: Chain lightning spell
 
 class Item:
     """Base class for all items."""
@@ -87,12 +92,24 @@ class MeleeWeapon(Item):
                 "description": "Good range, knockback, mid damage",
                 "color": (128, 128, 128),  # Gray
                 "damage_multiplier": 1.2,
-                "range_multiplier": 1.1,  # Increased range for better collision
+                "range_multiplier": 1.1,
                 "attack_arc": 145,
                 "attack_speed": 0.9,
                 "knockback": True,
-                "knockback_distance": 64,  # One tile distance
+                "knockback_distance": 64,
                 "shape": "mace"
+            },
+            MeleeWeaponType.WAR_AXE: {
+                "name": "War Axe",
+                "description": "Devastating wide swings, highest damage",
+                "color": (180, 50, 50),  # Dark red
+                "damage_multiplier": 2.0,  # Highest damage
+                "range_multiplier": 1.3,  # Good range
+                "attack_arc": 160,  # Very wide arc
+                "attack_speed": 0.7,  # Slower but devastating
+                "knockback": True,
+                "knockback_distance": 80,  # Strong knockback
+                "shape": "war_axe"
             }
         }
         
@@ -146,6 +163,18 @@ class Enchantment(Item):
                 "description": "Damage taken reduced by 10%",
                 "color": (150, 150, 150),  # Dark gray
                 "effect": "damage_reduction"
+            },
+            EnchantmentType.BLUE: {
+                "name": "Blue Enchantment",
+                "description": "Spell cooldowns reduced by 30%",
+                "color": (100, 150, 255),  # Bright blue
+                "effect": "cooldown_reduction"
+            },
+            EnchantmentType.PURPLE: {
+                "name": "Purple Enchantment", 
+                "description": "Critical hit chance increased by 15%",
+                "color": (200, 100, 255),  # Purple
+                "effect": "critical_chance"
             }
         }
         
@@ -189,6 +218,20 @@ class Spell(Item):
                 "color": (255, 165, 0),  # Orange
                 "cooldown": 4.0,  # Medium cooldown
                 "effect": "mind_control"
+            },
+            SpellType.SHIELD: {
+                "name": "Shield",
+                "description": "Temporary invulnerability for 3 seconds",
+                "color": (255, 255, 200),  # Golden
+                "cooldown": 15.0,  # Long cooldown for powerful effect
+                "effect": "invulnerability"
+            },
+            SpellType.LIGHTNING_STORM: {
+                "name": "Lightning Storm",
+                "description": "Chain lightning that jumps between enemies",
+                "color": (200, 200, 255),  # Electric blue
+                "cooldown": 10.0,  # High damage spell
+                "effect": "chain_lightning"
             }
         }
         

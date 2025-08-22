@@ -23,7 +23,7 @@ class Enemy:
         self.last_seen_player_pos = None
         self.last_attack_time = 0
         self.sight_range = 150
-        self.attack_range = 20
+        self.attack_range = 35  # Increased for better spacing
         self.give_up_time = 5.0  # seconds to chase last known position
         self.last_player_seen_time = 0
         
@@ -71,7 +71,9 @@ class Enemy:
             "fast": {"health": 30, "damage": 12, "xp": 20, "attack_speed": 1.0, "weapon": "dagger"},
             "heavy": {"health": 80, "damage": 25, "xp": 40, "attack_speed": 2.5, "weapon": "sword"},
             "ranged": {"health": 40, "damage": 20, "xp": 35, "attack_speed": 2.0, "weapon": "ranged"},
-            "mobile_ranged": {"health": 35, "damage": 18, "xp": 30, "attack_speed": 1.8, "weapon": "ranged"}
+            "mobile_ranged": {"health": 35, "damage": 18, "xp": 30, "attack_speed": 1.8, "weapon": "ranged"},
+            "berserker": {"health": 120, "damage": 35, "xp": 60, "attack_speed": 2.0, "weapon": "war_axe"},
+            "assassin": {"health": 25, "damage": 20, "xp": 45, "attack_speed": 0.8, "weapon": "twin_blades"}
         }
         
         stats = base_stats.get(enemy_type, base_stats["basic"])
@@ -111,6 +113,7 @@ class Enemy:
         # Mind control status
         self.mind_controlled = False
         self.mind_control_end_time = 0.0
+        self.mind_control_target = None  # Stick to one target
         
         # Visual indicators for enchantment
         self.enchanted_color = (255, 165, 0)  # Orange for mind control
@@ -120,22 +123,36 @@ class Enemy:
         weapon_configs = {
             "basic": {  # Weakest - uses fist
                 "weapon_type": "fist",
-                "range": 35,  # Increased range for better collision
-                "arc": 90,  # Wider arc
+                "range": 45,  # Better spacing from player
+                "arc": 90,
                 "speed_multiplier": 1.0
             },
-            "fast": {  # Dagger - low damage, increased range, 120 degree range, super fast
+            "fast": {  # Dagger - low damage, increased range, super fast
                 "weapon_type": "dagger",
-                "range": 35,  # Increased range for better collision
-                "arc": 120,  # Wider arc for dagger
+                "range": 45,  # Better spacing from player
+                "arc": 120,
                 "speed_multiplier": 2.0,
                 "damage_multiplier": 0.8
             },
             "heavy": {  # Uses mace, spear, or sword
                 "weapon_type": random.choice(["mace", "spear", "sword"]),
-                "range": 40,  # Increased range for better collision
-                "arc": 145,  # Match updated mace arc
+                "range": 50,  # Better spacing from player
+                "arc": 145,
                 "speed_multiplier": 0.8
+            },
+            "berserker": {  # NEW: High damage, medium speed, intimidating
+                "weapon_type": "war_axe",
+                "range": 55,
+                "arc": 160,  # Wide sweeping attacks
+                "speed_multiplier": 1.2,
+                "damage_multiplier": 1.5
+            },
+            "assassin": {  # NEW: Very fast, low health, high crit chance
+                "weapon_type": "twin_blades",
+                "range": 40,
+                "arc": 90,
+                "speed_multiplier": 2.5,
+                "damage_multiplier": 1.1
             },
             "ranged": {  # Ranged attacker
                 "weapon_type": "ranged",
@@ -306,7 +323,7 @@ class Enemy:
             self.velocity[1] *= 0.9
     
     def chase_behavior(self, dt: float, player, level, current_time: float):
-        """Chase behavior - move towards player or last known position."""
+        """Enhanced chase behavior with better spacing and menace."""
         target_pos = self.last_seen_player_pos if self.last_seen_player_pos else player.position
         
         # Calculate direction to target
@@ -314,18 +331,27 @@ class Enemy:
         dy = target_pos[1] - self.position[1]
         distance = math.sqrt(dx**2 + dy**2)
         
+        # Start menacing attacks when getting close (before in range)
+        if distance <= self.weapon_range * 1.3:  # Start attacking at 130% of weapon range for menace
+            self.state = "attacking"
+            return
+        
         # Mobile ranged enemies use kiting behavior
         if self.kite_behavior and distance < self.weapon_range * 0.8:
             # Move away from player to maintain distance
             self.velocity[0] = -(dx / distance) * self.speed
             self.velocity[1] = -(dy / distance) * self.speed
-        elif distance > 5:  # Normal chase behavior
-            # Normalize direction and apply speed
-            self.velocity[0] = (dx / distance) * self.speed
-            self.velocity[1] = (dy / distance) * self.speed
+        elif distance > self.weapon_range * 0.7:  # Maintain optimal distance
+            # Move closer but not too close
+            self.velocity[0] = (dx / distance) * self.speed * 0.9
+            self.velocity[1] = (dy / distance) * self.speed * 0.9
         else:
-            self.velocity[0] = 0
-            self.velocity[1] = 0
+            # At good distance, circle around player slightly
+            angle_offset = math.pi * 0.2  # Small circle movement
+            circle_dx = math.cos(math.atan2(dy, dx) + angle_offset)
+            circle_dy = math.sin(math.atan2(dy, dx) + angle_offset)
+            self.velocity[0] = circle_dx * self.speed * 0.3
+            self.velocity[1] = circle_dy * self.speed * 0.3
     
     def attack_behavior(self, dt: float, player, current_time: float):
         """Attack behavior - attack player when in range."""
@@ -602,41 +628,70 @@ class Enemy:
             pygame.draw.circle(screen, (150, 150, 150), (int(end_x), int(end_y)), 5, 1)
     
     def mind_control_behavior(self, dt: float, level, current_time: float):
-        """Behavior when mind controlled - attack other enemies."""
-        # Find nearest enemy that isn't mind controlled
-        target_enemy = None
-        min_distance = float('inf')
+        """Enhanced mind control - stick to one target until dead or spell ends."""
+        # If no target or current target is dead, find a new one
+        if (not self.mind_control_target or 
+            not self.mind_control_target.is_alive() or 
+            self.mind_control_target.mind_controlled):
+            
+            # Find nearest alive, non-mind-controlled enemy
+            self.mind_control_target = None
+            min_distance = float('inf')
+            
+            for enemy in level.enemies:
+                if (enemy != self and enemy.is_alive() and not enemy.mind_controlled):
+                    distance = self.distance_to_enemy(enemy)
+                    if distance < min_distance:
+                        min_distance = distance
+                        self.mind_control_target = enemy
         
-        for enemy in level.enemies:
-            if (enemy != self and enemy.is_alive() and not enemy.mind_controlled):
-                distance = self.distance_to_enemy(enemy)
-                if distance < min_distance:
-                    min_distance = distance
-                    target_enemy = enemy
-        
-        if target_enemy:
-            # Chase and attack the target enemy
-            if min_distance <= self.attack_range:
+        if self.mind_control_target:
+            target_distance = self.distance_to_enemy(self.mind_control_target)
+            
+            # Attack behavior with improved spacing
+            if target_distance <= self.weapon_range:
                 self.state = "attacking"
                 if current_time - self.last_attack_time >= self.attack_cooldown:
-                    # Attack the enemy
-                    target_enemy.take_damage(self.damage)
+                    # Create attack animation
+                    dx = self.mind_control_target.position[0] - self.position[0]
+                    dy = self.mind_control_target.position[1] - self.position[1]
+                    attack_angle = math.atan2(dy, dx)
+                    self.create_attack_animation(attack_angle)
+                    
+                    # Attack the target enemy
+                    self.mind_control_target.take_damage(self.damage)
                     self.last_attack_time = current_time
-                    print(f"Mind controlled {self.enemy_type} attacks {target_enemy.enemy_type}!")
+                    print(f"Mind controlled {self.enemy_type} attacks {self.mind_control_target.enemy_type}!")
             else:
                 self.state = "chasing"
-                # Move towards target enemy
-                dx = target_enemy.position[0] - self.position[0]
-                dy = target_enemy.position[1] - self.position[1]
-                distance = math.sqrt(dx * dx + dy * dy)
+                # Move towards target with spacing
+                optimal_distance = self.weapon_range * 0.8  # Stay at 80% of weapon range
                 
-                if distance > 0:
-                    self.velocity[0] = (dx / distance) * self.speed
-                    self.velocity[1] = (dy / distance) * self.speed
+                if target_distance > optimal_distance:
+                    # Move closer
+                    dx = self.mind_control_target.position[0] - self.position[0]
+                    dy = self.mind_control_target.position[1] - self.position[1]
+                    distance = math.sqrt(dx * dx + dy * dy)
+                    
+                    if distance > 0:
+                        self.velocity[0] = (dx / distance) * self.speed * 0.9
+                        self.velocity[1] = (dy / distance) * self.speed * 0.9
+                else:
+                    # Maintain distance, circle around target
+                    self.velocity[0] *= 0.5
+                    self.velocity[1] *= 0.5
         else:
-            # No enemies to attack, go idle
-            self.state = "idle"
-            self.velocity = [0.0, 0.0]
+            # No valid targets, return to spawn area
+            dx = self.spawn_position[0] - self.position[0]
+            dy = self.spawn_position[1] - self.position[1]
+            distance = math.sqrt(dx * dx + dy * dy)
+            
+            if distance > 20:
+                self.velocity[0] = (dx / distance) * self.speed * 0.3
+                self.velocity[1] = (dy / distance) * self.speed * 0.3
+            else:
+                self.state = "idle"
+                self.velocity = [0.0, 0.0]
 
     def distance_to_enemy(self, other_enemy) -> float:
         """Calculate distance to another enemy."""
