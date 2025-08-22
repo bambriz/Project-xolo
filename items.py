@@ -43,6 +43,8 @@ class SpellType(Enum):
     FROST_NOVA = "frost_nova"  # NEW: Freeze nearby enemies
     FIRE_STORM = "fire_storm"  # NEW: Area damage over time
     SHADOW_STEP = "shadow_step"  # NEW: Teleport and invisibility
+    VOID_BLAST = "void_blast"  # NEW: Piercing projectile that goes through enemies
+    HEAL_BURST = "heal_burst"  # NEW: Instant full heal with damage immunity
 
 class Item:
     """Base class for all items."""
@@ -264,6 +266,20 @@ class Spell(Item):
                 "color": (100, 50, 150),  # Dark purple
                 "cooldown": 10.0,
                 "effect": "shadow_step"
+            },
+            SpellType.VOID_BLAST: {
+                "name": "Void Blast",
+                "description": "Piercing projectile that penetrates all enemies",
+                "color": (50, 0, 100),  # Dark violet
+                "cooldown": 6.0,
+                "effect": "piercing_projectile"
+            },
+            SpellType.HEAL_BURST: {
+                "name": "Heal Burst",
+                "description": "Instant full heal with 3s damage immunity",
+                "color": (255, 255, 255),  # White
+                "cooldown": 20.0,
+                "effect": "instant_heal"
             }
         }
         

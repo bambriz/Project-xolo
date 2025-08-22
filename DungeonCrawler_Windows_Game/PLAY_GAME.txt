@@ -1,0 +1,21 @@
+DUNGEON CRAWLER GAME - WINDOWS VERSION
+
+HOW TO PLAY:
+1. Double-click "DungeonCrawler.exe" to start the game
+2. Use WASD to move your character
+3. Left-click to attack enemies
+4. Right-click to cast spells
+5. Collect items and level up!
+
+NOTE: This game was built on Linux for Windows.
+If it doesn't run, you may need to install:
+- Microsoft Visual C++ Redistributable
+- Or run the Python source version instead
+
+CONTROLS:
+- WASD/Arrows: Move
+- Left Click: Melee attack
+- Right Click: Cast spell
+- ESC: Quit
+
+ENJOY THE GAME! 🎮

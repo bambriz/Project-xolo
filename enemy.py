@@ -95,15 +95,19 @@ class Enemy:
         
         # Special abilities based on type
         if enemy_type == "fast":
-            self.speed *= 2.0  # Much faster (was 1.5)
-            self.sight_range *= 1.2
+            self.speed *= 2.5  # Even faster for more challenge
+            self.sight_range *= 1.6  # Much better sight range
             self.preferred_terrain = "open"  # Prefer open spaces for flanking
         elif enemy_type == "heavy":
             self.radius = 16
             self.attack_range = 25
         elif enemy_type == "ranged":
             self.attack_range = 100
-            self.sight_range *= 1.3
+            self.sight_range *= 1.8  # Much better sight range
+        elif enemy_type == "mobile_ranged":
+            self.attack_range = 80
+            self.sight_range *= 1.8  # Much better sight range for challenge
+            self.kite_behavior = True  # Enhanced kiting
     
     def setup_appearance(self):
         """Set up visual appearance based on enemy type."""

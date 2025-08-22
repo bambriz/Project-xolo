@@ -19,7 +19,7 @@ class Notification:
         else:
             self.color = (255, 200, 100)  # Orange for drops
             
-        self.font_size = 24
+        self.font_size = 36  # Bigger font
         self.lifetime = 3.0  # Duration in seconds
         self.max_lifetime = 3.0
         
@@ -58,8 +58,8 @@ class NotificationManager:
     def __init__(self, screen_width: int):
         self.notifications: List[Notification] = []
         self.screen_width = screen_width
-        self.base_x = 20  # Left margin
-        self.base_y = 100  # Top margin (below other UI elements)
+        self.base_x = screen_width // 2 - 200  # Center horizontally (approximate)
+        self.base_y = 200  # More centered vertically
     
     def add_pickup_notification(self, item_name: str, description: str):
         """Add an item pickup notification."""
@@ -78,7 +78,7 @@ class NotificationManager:
     def _update_positions(self):
         """Update Y positions for stacking notifications."""
         for i, notification in enumerate(self.notifications):
-            notification.y_offset = i * 30  # Stack with 30px spacing
+            notification.y_offset = i * 45  # Stack with more spacing for bigger font
     
     def update(self, dt: float):
         """Update all notifications."""
@@ -93,7 +93,10 @@ class NotificationManager:
     def render(self, screen: pygame.Surface):
         """Render all notifications."""
         for notification in self.notifications:
-            notification.render(screen, self.base_x, self.base_y)
+            # Center each notification text
+            text_width = notification.font.size(notification.message)[0]
+            centered_x = (self.screen_width - text_width) // 2
+            notification.render(screen, centered_x, self.base_y)
     
     def clear(self):
         """Clear all notifications."""

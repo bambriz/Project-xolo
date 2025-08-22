@@ -257,9 +257,9 @@ class Player:
             pass
             
         elif spell.effect == "area_damage":  # Power Pulse
-            # Deal massive damage in large circle around player with 4x player length range
+            # Deal massive damage in large circle around player with 8x player length range
             damage = int(self.damage * 3.0)  # Higher damage for longer cooldown
-            radius = self.radius * 4  # 4x player length for better range
+            radius = self.radius * 8  # 8x player length (doubled from 4x) for better range
             
             # Create visual effect for power pulse
             pulse_effect = {
