@@ -367,7 +367,7 @@ class Player:
         else:
             print("No spell equipped to drop")
     
-    def render(self, screen: pygame.Surface, camera_x: int, camera_y: int, asset_manager):
+    def render(self, screen: pygame.Surface, camera_x: int, camera_y: int, asset_manager, mouse_pos=None):
         """Render the player on screen."""
         # Calculate screen position
         screen_x = int(self.position[0] + camera_x)
@@ -397,6 +397,10 @@ class Player:
             color = (150, 200, 255)  # Brighter when hasted
         else:
             color = self.color
+        
+        # Draw attack direction arrow if mouse position is available
+        if mouse_pos:
+            self.render_attack_direction_arrow(screen, screen_x, screen_y, mouse_pos, camera_x, camera_y)
         
         # Draw player as a circle with outline
         pygame.draw.circle(screen, color, (screen_x, screen_y), self.radius)
@@ -431,6 +435,67 @@ class Player:
         # Draw health bar above player if damaged
         if self.current_health < self.max_health:
             self.draw_health_bar(screen, screen_x, screen_y - self.radius - 10)
+    
+    def render_attack_direction_arrow(self, screen: pygame.Surface, screen_x: int, screen_y: int, 
+                                     mouse_pos: tuple, camera_x: int, camera_y: int):
+        """Render an arrow showing attack direction based on mouse position."""
+        # Convert mouse screen position to world position
+        world_mouse_x = mouse_pos[0] - camera_x
+        world_mouse_y = mouse_pos[1] - camera_y
+        
+        # Calculate direction from player to mouse
+        dx = world_mouse_x - self.position[0]
+        dy = world_mouse_y - self.position[1]
+        distance = math.sqrt(dx * dx + dy * dy)
+        
+        # Only show arrow if mouse is far enough from player
+        if distance > 5:
+            # Normalize direction
+            norm_dx = dx / distance
+            norm_dy = dy / distance
+            
+            # Arrow properties
+            arrow_distance = self.radius + 25  # Distance from player center
+            arrow_length = 15  # Length of arrow
+            arrow_width = 8   # Width of arrowhead
+            
+            # Calculate arrow tip position
+            tip_x = screen_x + norm_dx * arrow_distance
+            tip_y = screen_y + norm_dy * arrow_distance
+            
+            # Calculate arrow base position
+            base_x = tip_x - norm_dx * arrow_length
+            base_y = tip_y - norm_dy * arrow_length
+            
+            # Calculate arrow wings (perpendicular to direction)
+            perp_dx = -norm_dy * arrow_width / 2
+            perp_dy = norm_dx * arrow_width / 2
+            
+            wing1_x = base_x + perp_dx
+            wing1_y = base_y + perp_dy
+            wing2_x = base_x - perp_dx
+            wing2_y = base_y - perp_dy
+            
+            # Draw arrow as a triangle
+            arrow_points = [
+                (int(tip_x), int(tip_y)),     # Arrow tip
+                (int(wing1_x), int(wing1_y)), # Wing 1
+                (int(wing2_x), int(wing2_y))  # Wing 2
+            ]
+            
+            # Arrow color - bright white with slight transparency effect
+            arrow_color = (255, 255, 255)
+            outline_color = (100, 100, 100)
+            
+            # Draw arrow body (line from player edge to base)
+            edge_x = screen_x + norm_dx * (self.radius + 2)
+            edge_y = screen_y + norm_dy * (self.radius + 2)
+            pygame.draw.line(screen, arrow_color, (int(edge_x), int(edge_y)), 
+                           (int(base_x), int(base_y)), 3)
+            
+            # Draw arrowhead
+            pygame.draw.polygon(screen, arrow_color, arrow_points)
+            pygame.draw.polygon(screen, outline_color, arrow_points, 2)
     
     def draw_health_bar(self, screen: pygame.Surface, x: int, y: int):
         """Draw a health bar above the player."""

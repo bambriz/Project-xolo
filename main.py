@@ -235,8 +235,9 @@ class Game:
         if self.level.boss and self.visibility_system.is_visible((self.level.boss.position[0], self.level.boss.position[1])):
             self.level.boss.render_body(self.screen, camera_x, camera_y, self.asset_manager)
         
-        # Render player
-        self.player.render(self.screen, camera_x, camera_y, self.asset_manager)
+        # Render player with mouse position for attack direction arrow
+        mouse_pos = pygame.mouse.get_pos()
+        self.player.render(self.screen, camera_x, camera_y, self.asset_manager, mouse_pos)
         
         # Render enemy attack animations ABOVE player
         for enemy in self.level.enemies:

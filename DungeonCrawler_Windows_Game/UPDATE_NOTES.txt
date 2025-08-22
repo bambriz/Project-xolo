@@ -1,0 +1,33 @@
+DUNGEON CRAWLER GAME - UPDATE v1.1
+
+NEW FEATURE ADDED: ATTACK DIRECTION ARROW
+
+✨ What's New:
+- Added visual attack direction arrow around player
+- Arrow points toward mouse cursor location
+- Shows exactly where your attacks will hit
+- Independent from movement direction
+- Bright white arrow with dark outline for visibility
+
+🎯 How It Works:
+- Move your mouse around the screen
+- White arrow appears around your character
+- Arrow points to where you're aiming
+- Attack direction follows mouse, not movement
+- Helps with precise combat targeting
+
+🎮 Enhanced Gameplay:
+- Better combat precision
+- Visual feedback for attack targeting  
+- Improved tactical gameplay
+- Easier enemy targeting
+
+📋 Previous Features Still Included:
+- Enhanced fast enemy AI with flanking
+- Improved ranged enemy sight ranges
+- Power Pulse with doubled range
+- Centered item notifications with bigger text
+- New spells: Void Blast & Heal Burst
+- All previous combat improvements
+
+Enjoy the enhanced combat experience! 🎮
