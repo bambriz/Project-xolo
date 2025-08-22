@@ -62,20 +62,52 @@ class Game:
             if event.type == pygame.QUIT:
                 self.running = False
             elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE:
-                    self.running = False
-                elif event.key == pygame.K_p:
-                    self.paused = not self.paused
-                elif event.key == pygame.K_r:
-                    self.restart_game()
-                elif event.key == pygame.K_e:  # E key to pickup items
-                    self.player.try_pickup_item(self.level)
-                elif event.key == pygame.K_q:  # Q key to drop spell
-                    self.player.drop_spell(self.level)
+                if self.game_state.phase == "menu":
+                    self.handle_menu_events(event)
+                elif self.game_state.phase == "game_over":
+                    self.handle_game_over_events(event)
+                elif self.game_state.phase == "playing":
+                    self.handle_playing_events(event)
+    
+    def handle_menu_events(self, event):
+        """Handle events during menu phase."""
+        if event.key == pygame.K_SPACE:
+            self.start_new_game()
+        elif event.key == pygame.K_ESCAPE:
+            self.running = False
+    
+    def handle_game_over_events(self, event):
+        """Handle events during game over phase."""
+        if event.key == pygame.K_r:
+            self.start_new_game()
+        elif event.key == pygame.K_ESCAPE:
+            self.running = False
+    
+    def handle_playing_events(self, event):
+        """Handle events during playing phase."""
+        if event.key == pygame.K_ESCAPE:
+            self.running = False
+        elif event.key == pygame.K_p:
+            self.paused = not self.paused
+        elif event.key == pygame.K_r:
+            self.restart_game()
+        elif event.key == pygame.K_e:  # E key to pickup items
+            self.player.try_pickup_item(self.level)
+        elif event.key == pygame.K_q:  # Q key to drop spell
+            self.player.drop_spell(self.level)
     
     def update(self, dt: float):
         """Update all game objects and systems."""
-        if self.paused:
+        # Always update game state
+        self.game_state.update(dt)
+        
+        # Only update game logic during playing phase
+        if self.game_state.phase != "playing" or self.paused:
+            return
+        
+        # Check if player died
+        if self.player.current_health <= 0:
+            self.game_state.set_phase("game_over")
             return
         
         # Get current input state
@@ -121,6 +153,9 @@ class Game:
         # Remove dead enemies and award XP
         for enemy in self.level.enemies[:]:  # Create a copy to iterate over
             if not enemy.is_alive():
+                # Drop health items when enemy dies
+                self.level.item_manager.drop_enemy_loot(tuple(enemy.position), is_boss=False)
+                
                 xp_gained = enemy.xp_value
                 self.player.gain_xp(xp_gained)
                 self.level.enemies.remove(enemy)
@@ -130,6 +165,10 @@ class Game:
         # Check if boss is defeated
         if self.level.boss and not self.level.boss.is_alive():
             if hasattr(self.level.boss, 'death_processed') and not self.level.boss.death_processed:
+                # Drop boss health items (2-4 items as requested)
+                boss_pos = (self.level.boss.position[0], self.level.boss.position[1])
+                self.level.item_manager.drop_enemy_loot(boss_pos, is_boss=True)
+                
                 xp_gained = self.level.boss.xp_value
                 self.player.gain_xp(xp_gained)
                 self.sound_manager.play_sound('boss_death')

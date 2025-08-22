@@ -253,9 +253,19 @@ class Player:
             print("Haste activated!")
             
         elif spell.effect == "area_damage":  # Power Pulse
-            # Deal high damage in circle around player
-            damage = int(self.damage * 2.0)  # Double damage
-            radius = self.radius * 2  # Double player radius
+            # Deal high damage in circle around player with 3x player length range
+            damage = int(self.damage * 2.5)  # High damage to justify long cooldown
+            radius = self.radius * 3  # 3x player length as requested
+            
+            # Create visual effect for power pulse
+            pulse_effect = {
+                'type': 'power_pulse',
+                'center': tuple(self.position),
+                'radius': radius,
+                'lifetime': 0.8,
+                'max_lifetime': 0.8
+            }
+            self.combat_system.attack_animations.append(pulse_effect)
             
             for enemy in level.enemies:
                 if enemy.is_alive():
@@ -265,6 +275,8 @@ class Player:
                     
                     if distance <= radius:
                         enemy.take_damage(damage)
+                        # Add hit effect on enemy
+                        enemy.add_hit_effect()
                         print(f"Power Pulse hit {enemy.enemy_type} enemy for {damage} damage!")
                         
         elif spell.effect == "mind_control":  # Turn Coat
@@ -283,15 +295,39 @@ class Player:
                         closest_enemy = enemy
             
             if closest_enemy:
-                # Set enemy as mind controlled for 10 seconds
-                closest_enemy.mind_controlled = True
-                closest_enemy.mind_control_end_time = current_time + 10.0
-                print(f"Turn Coat: {closest_enemy.enemy_type} enemy is now attacking other enemies!")
+                # Create projectile with unique coloring for Turn Coat
+                from combat import Projectile
+                turn_coat_projectile = Projectile(
+                    (self.position[0], self.position[1]), 
+                    (closest_enemy.position[0], closest_enemy.position[1]), 
+                    0,  # No damage, just visual
+                    600,  # Fast projectile
+                    2.0,  # 2 second lifetime
+                    (255, 165, 0)  # Orange color
+                )
+                turn_coat_projectile.is_turn_coat = True
+                turn_coat_projectile.target_enemy = closest_enemy
+                self.combat_system.projectiles.append(turn_coat_projectile)
+                
+                print(f"Turn Coat projectile launched at {closest_enemy.enemy_type} enemy!")
     
     def try_pickup_item(self, level):
         """Try to pickup nearby item."""
         item = level.item_manager.check_item_pickup(tuple(self.position))
         if item:
+            # Handle health items specially - they are consumed immediately
+            if item.item_type.value == "health":
+                from items import HealthItem
+                if isinstance(item, HealthItem):
+                    if item.use_on_player(self):
+                        level.item_manager.pickup_item(item)
+                        heal_percent = int(item.heal_percentage * 100)
+                        print(f"Picked up health pack! Healed {heal_percent}%")
+                    else:
+                        print("Already at full health!")
+                return
+            
+            # Handle equipment items (weapons, enchantments, spells)
             old_item = self.inventory.equip_item(item)
             level.item_manager.pickup_item(item)
             

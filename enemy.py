@@ -44,6 +44,10 @@ class Enemy:
         # Visual
         self.setup_appearance()
         
+        # Hit effects
+        self.hit_effect_time = 0.0
+        self.hit_effect_duration = 0.3  # Flash for 0.3 seconds when hit
+        
         print(f"Created {enemy_type} enemy (level {player_level}) with {self.current_health} HP")
     
     def setup_stats(self, enemy_type: str, player_level: int):
@@ -93,6 +97,9 @@ class Enemy:
         # Mind control status
         self.mind_controlled = False
         self.mind_control_end_time = 0.0
+        
+        # Visual indicators for enchantment
+        self.enchanted_color = (255, 165, 0)  # Orange for mind control
     
     def setup_weapon(self, enemy_type: str):
         """Set up weapon properties based on enemy type."""
@@ -154,6 +161,17 @@ class Enemy:
             self.mind_controlled = False
             print(f"{self.enemy_type} enemy is no longer mind controlled")
         
+        # Update projectiles for ranged enemies
+        if hasattr(self, 'projectiles'):
+            for projectile in self.projectiles[:]:
+                projectile.update(dt)
+                if projectile.should_remove():
+                    self.projectiles.remove(projectile)
+                elif projectile.check_collision_with_target(player, player.radius):
+                    if player.take_damage(projectile.damage):
+                        print(f"Ranged projectile hit player for {projectile.damage} damage!")
+                    self.projectiles.remove(projectile)
+        
         # Update AI state based on player visibility (mind controlled enemies act differently)
         if not self.mind_controlled:
             self.update_ai_state(player, can_see_player, current_time)
@@ -171,6 +189,13 @@ class Enemy:
         
         # Apply movement
         self.apply_movement(dt, level)
+        
+        # Update attack animations
+        if hasattr(self, 'attack_animations'):
+            for animation in self.attack_animations[:]:
+                animation['lifetime'] -= dt
+                if animation['lifetime'] <= 0:
+                    self.attack_animations.remove(animation)
     
     def update_ai_state(self, player, can_see_player: bool, current_time: float):
         """Update AI state based on player visibility and distance."""
@@ -244,17 +269,37 @@ class Enemy:
             self.last_attack_time = current_time
     
     def attack_player(self, player):
-        """Attack the player using their weapon type."""
+        """Attack the player using their weapon type with visual effects."""
         damage = int(self.damage * self.weapon_damage_multiplier)
         
+        # Calculate attack direction to player
+        dx = player.position[0] - self.position[0]
+        dy = player.position[1] - self.position[1]
+        attack_angle = math.atan2(dy, dx)
+        
         if self.weapon_type == "ranged":
-            # Ranged enemies shoot projectiles (simplified - just direct damage for now)
+            # Create visual projectile for ranged enemies
+            from combat import Projectile
+            projectile = Projectile(
+                self.position[:],  # Start from enemy position
+                player.position[:],  # Target player position
+                damage,
+                300  # Projectile speed
+            )
+            if not hasattr(self, 'projectiles'):
+                self.projectiles = []
+            self.projectiles.append(projectile)
             print(f"{self.enemy_type} enemy shoots at player!")
-            player.take_damage(self.damage)
         else:
-            # Melee attack
-            print(f"{self.enemy_type} enemy attacks player!")
-            player.take_damage(self.damage)
+            # Melee attack with visual animation
+            self.create_attack_animation(attack_angle)
+            # Check if player is in range for melee hit
+            distance = math.sqrt(dx**2 + dy**2)
+            if distance <= self.weapon_range:
+                player.take_damage(damage)
+                print(f"{self.enemy_type} enemy attacks player with {self.weapon_type}!")
+            else:
+                print(f"{self.enemy_type} enemy swings but misses (too far)!")
     
     def apply_movement(self, dt: float, level):
         """Apply movement with collision detection."""
@@ -306,8 +351,29 @@ class Enemy:
         screen_x = int(self.position[0] + camera_x)
         screen_y = int(self.position[1] + camera_y)
         
+        # Determine current color (with hit effect and mind control)
+        current_color = self.color
+        current_time = pygame.time.get_ticks() / 1000.0
+        
+        # Apply hit effect (white flash)
+        if current_time < self.hit_effect_time + self.hit_effect_duration:
+            flash_intensity = 1.0 - ((current_time - self.hit_effect_time) / self.hit_effect_duration)
+            current_color = (
+                int(self.color[0] + (255 - self.color[0]) * flash_intensity),
+                int(self.color[1] + (255 - self.color[1]) * flash_intensity),
+                int(self.color[2] + (255 - self.color[2]) * flash_intensity)
+            )
+        
         # Draw enemy circle
-        pygame.draw.circle(screen, self.color, (screen_x, screen_y), self.radius)
+        pygame.draw.circle(screen, current_color, (screen_x, screen_y), self.radius)
+        
+        # Draw mind control indicator if enchanted
+        if self.mind_controlled:
+            pygame.draw.circle(screen, self.enchanted_color, (screen_x, screen_y), self.radius + 3, 2)
+            # Pulsing effect
+            pulse = int(20 * (0.5 + 0.5 * math.sin(current_time * 8)))
+            pygame.draw.circle(screen, (255, 165, 0, pulse), (screen_x, screen_y), self.radius + 5, 1)
+        
         pygame.draw.circle(screen, self.outline_color, (screen_x, screen_y), self.radius, 1)
         
         # Draw state indicator
@@ -316,6 +382,20 @@ class Enemy:
         # Draw health bar if damaged
         if self.current_health < self.max_health:
             self.draw_health_bar(screen, screen_x, screen_y - self.radius - 8)
+        
+        # Render ranged projectiles
+        if hasattr(self, 'projectiles'):
+            for projectile in self.projectiles:
+                projectile_x = int(projectile.position[0] + camera_x)
+                projectile_y = int(projectile.position[1] + camera_y)
+                # Draw enemy projectile as red dot
+                pygame.draw.circle(screen, (255, 100, 100), (projectile_x, projectile_y), 4)
+                pygame.draw.circle(screen, (200, 0, 0), (projectile_x, projectile_y), 4, 1)
+        
+        # Render attack animations
+        if hasattr(self, 'attack_animations'):
+            for animation in self.attack_animations:
+                self.render_attack_animation(screen, camera_x, camera_y, animation)
     
     def draw_state_indicator(self, screen: pygame.Surface, screen_x: int, screen_y: int):
         """Draw a small indicator showing enemy state."""
@@ -343,6 +423,110 @@ class Enemy:
         if health_width > 0:
             pygame.draw.rect(screen, (50, 200, 50), 
                             (x - bar_width // 2, y, health_width, bar_height))
+    
+    def create_attack_animation(self, attack_angle: float):
+        """Create a visual effect for enemy weapon attack."""
+        if not hasattr(self, 'attack_animations'):
+            self.attack_animations = []
+        
+        # Create animation based on weapon type
+        if self.weapon_type == "sword":
+            animation = {
+                'type': 'enemy_sword_swing',
+                'angle': attack_angle,
+                'lifetime': 0.25,
+                'max_lifetime': 0.25,
+                'range': self.weapon_range,
+                'color': (150, 150, 200)  # Light blue
+            }
+        elif self.weapon_type == "spear":
+            animation = {
+                'type': 'enemy_spear_poke',
+                'angle': attack_angle,
+                'lifetime': 0.15,
+                'max_lifetime': 0.15,
+                'range': self.weapon_range,
+                'color': (139, 69, 19)  # Brown
+            }
+        elif self.weapon_type == "mace":
+            animation = {
+                'type': 'enemy_mace_swing',
+                'angle': attack_angle,
+                'lifetime': 0.25,
+                'max_lifetime': 0.25,
+                'range': self.weapon_range,
+                'color': (128, 128, 128)  # Gray
+            }
+        elif self.weapon_type == "dagger":
+            animation = {
+                'type': 'enemy_dagger_stab',
+                'angle': attack_angle,
+                'lifetime': 0.12,
+                'max_lifetime': 0.12,
+                'range': self.weapon_range,
+                'color': (180, 180, 180)  # Silver
+            }
+        else:  # fist or default
+            animation = {
+                'type': 'enemy_punch',
+                'angle': attack_angle,
+                'lifetime': 0.2,
+                'max_lifetime': 0.2,
+                'range': self.weapon_range,
+                'color': self.color  # Use enemy color
+            }
+        
+        self.attack_animations.append(animation)
+    
+    def render_attack_animation(self, screen: pygame.Surface, camera_x: int, camera_y: int, animation):
+        """Render enemy attack animation."""
+        screen_x = int(self.position[0] + camera_x)
+        screen_y = int(self.position[1] + camera_y)
+        
+        progress = 1.0 - (animation['lifetime'] / animation['max_lifetime'])
+        
+        if animation['type'] == 'enemy_sword_swing':
+            # Sword swing animation
+            swing_distance = animation['range'] * (0.7 + 0.3 * progress)
+            end_x = screen_x + math.cos(animation['angle']) * swing_distance
+            end_y = screen_y + math.sin(animation['angle']) * swing_distance
+            pygame.draw.line(screen, animation['color'], (screen_x, screen_y), (end_x, end_y), 3)
+            
+        elif animation['type'] == 'enemy_spear_poke':
+            # Spear poke animation
+            poke_distance = animation['range'] * (0.5 + 0.5 * math.sin(progress * math.pi))
+            end_x = screen_x + math.cos(animation['angle']) * poke_distance
+            end_y = screen_y + math.sin(animation['angle']) * poke_distance
+            pygame.draw.line(screen, animation['color'], (screen_x, screen_y), (end_x, end_y), 4)
+            pygame.draw.circle(screen, (180, 180, 180), (int(end_x), int(end_y)), 3)
+            
+        elif animation['type'] == 'enemy_mace_swing':
+            # Mace swing animation
+            swing_distance = animation['range'] * (0.7 + 0.3 * progress)
+            end_x = screen_x + math.cos(animation['angle']) * swing_distance
+            end_y = screen_y + math.sin(animation['angle']) * swing_distance
+            # Draw handle
+            handle_end = swing_distance * 0.7
+            handle_x = screen_x + math.cos(animation['angle']) * handle_end
+            handle_y = screen_y + math.sin(animation['angle']) * handle_end
+            pygame.draw.line(screen, (139, 69, 19), (screen_x, screen_y), (handle_x, handle_y), 3)
+            # Draw mace head
+            pygame.draw.circle(screen, animation['color'], (int(end_x), int(end_y)), 6)
+            
+        elif animation['type'] == 'enemy_dagger_stab':
+            # Quick dagger stab
+            stab_distance = animation['range'] * (0.8 + 0.2 * math.sin(progress * math.pi * 2))
+            end_x = screen_x + math.cos(animation['angle']) * stab_distance
+            end_y = screen_y + math.sin(animation['angle']) * stab_distance
+            pygame.draw.line(screen, animation['color'], (screen_x, screen_y), (end_x, end_y), 2)
+            
+        else:  # enemy_punch
+            # Fist punch animation
+            punch_distance = animation['range'] * (0.6 + 0.4 * math.sin(progress * math.pi))
+            end_x = screen_x + math.cos(animation['angle']) * punch_distance
+            end_y = screen_y + math.sin(animation['angle']) * punch_distance
+            pygame.draw.circle(screen, animation['color'], (int(end_x), int(end_y)), 5)
+            pygame.draw.circle(screen, (150, 150, 150), (int(end_x), int(end_y)), 5, 1)
     
     def mind_control_behavior(self, dt: float, level, current_time: float):
         """Behavior when mind controlled - attack other enemies."""
@@ -397,3 +581,10 @@ def create_enemy(position: Tuple[float, float], player_level: int) -> Enemy:
     
     enemy_type = random.choice(enemy_types)
     return Enemy(position, enemy_type, player_level)
+
+# Add the missing method to Enemy class
+def add_hit_effect(self):
+    """Add visual hit effect when enemy takes damage."""
+    self.hit_effect_time = pygame.time.get_ticks() / 1000.0
+
+# Hit effect method added above within class

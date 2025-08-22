@@ -11,7 +11,8 @@ class Projectile:
     """A projectile fired by the player or enemies."""
     
     def __init__(self, start_pos: Tuple[float, float], target_pos: Tuple[float, float], 
-                 damage: int, speed: float = 400.0, lifetime: float = 3.0):
+                 damage: int, speed: float = 400.0, lifetime: float = 3.0, 
+                 color: Tuple[int, int, int] = (255, 255, 100)):
         """Initialize a projectile."""
         self.position = list(start_pos)
         self.damage = damage
@@ -31,9 +32,13 @@ class Projectile:
             self.velocity = [0, 0]
         
         # Visual properties
-        self.color = (255, 255, 100)  # Yellow
+        self.color = color
         self.trail = []
         self.max_trail_length = 5
+        
+        # Special properties for different spell types
+        self.is_turn_coat = False
+        self.target_enemy = None
     
     def update(self, dt: float) -> bool:
         """Update projectile position and return False if it should be removed."""
@@ -128,19 +133,43 @@ class CombatSystem:
         
         # Check for enemy hits
         damage_dealt = False
+        weapon = self.owner.inventory.melee_weapon if hasattr(self.owner, 'inventory') and self.owner.inventory.melee_weapon else None
+        
         for enemy in level.enemies:
             if enemy.is_alive() and self.is_in_melee_range(enemy, attack_angle):
                 if enemy.take_damage(self.owner.damage):
                     # Enemy died
                     pass
+                
+                # Add hit effect visual
+                if hasattr(enemy, 'add_hit_effect'):
+                    enemy.add_hit_effect()
+                elif hasattr(enemy, 'hit_effect_time'):
+                    enemy.hit_effect_time = pygame.time.get_ticks() / 1000.0
+                
+                # Apply knockback if weapon has it
+                if weapon and hasattr(weapon, 'knockback') and weapon.knockback:
+                    self.apply_knockback(enemy, attack_angle, weapon.knockback_distance, level)
+                
                 damage_dealt = True
                 print(f"Melee hit! Dealt {self.owner.damage} damage to {enemy.enemy_type}")
         
-        # Check for boss hits
+        # Check for boss hits  
         if level.boss and level.boss.is_alive() and self.is_in_melee_range(level.boss, attack_angle):
             if level.boss.take_damage(self.owner.damage):
                 # Boss died
                 pass
+            
+            # Add hit effect visual for boss
+            if hasattr(level.boss, 'add_hit_effect'):
+                level.boss.add_hit_effect()
+            elif hasattr(level.boss, 'hit_effect_time'):
+                level.boss.hit_effect_time = pygame.time.get_ticks() / 1000.0
+            
+            # Apply knockback to boss if weapon has it (though bosses might resist)
+            if weapon and hasattr(weapon, 'knockback') and weapon.knockback:
+                self.apply_knockback(level.boss, attack_angle, weapon.knockback_distance // 2, level)  # Reduced knockback for boss
+            
             damage_dealt = True
             print(f"Melee hit! Dealt {self.owner.damage} damage to {level.boss.boss_type} boss")
         
@@ -252,12 +281,25 @@ class CombatSystem:
             hit_enemy = False
             for enemy in level.enemies:
                 if enemy.is_alive() and projectile.check_collision(enemy.position, enemy.radius):
-                    if enemy.take_damage(projectile.damage):
-                        # Enemy died
-                        pass
+                    # Handle Turn Coat projectile special behavior
+                    if hasattr(projectile, 'is_turn_coat') and projectile.is_turn_coat:
+                        # Turn Coat projectile - enchant the enemy
+                        current_time = pygame.time.get_ticks() / 1000.0
+                        enemy.mind_controlled = True
+                        enemy.mind_control_end_time = current_time + 10.0
+                        print(f"Turn Coat hit! {enemy.enemy_type} enemy is now mind controlled!")
+                    else:
+                        # Regular projectile damage
+                        if enemy.take_damage(projectile.damage):
+                            # Enemy died
+                            pass
+                        # Add hit effect
+                        if hasattr(enemy, 'add_hit_effect'):
+                            enemy.add_hit_effect()
+                        print(f"Projectile hit! Dealt {projectile.damage} damage to {enemy.enemy_type}")
+                    
                     self.projectiles.remove(projectile)
                     hit_enemy = True
-                    print(f"Projectile hit! Dealt {projectile.damage} damage to {enemy.enemy_type}")
                     break
             
             if hit_enemy:
@@ -288,6 +330,8 @@ class CombatSystem:
                 self.render_weapon_swing(screen, camera_x, camera_y, animation)
             elif animation['type'] == 'fist_punch':
                 self.render_fist_punch(screen, camera_x, camera_y, animation)
+            elif animation['type'] == 'power_pulse':
+                self.render_power_pulse(screen, camera_x, camera_y, animation)
     
     def render_melee_sweep(self, screen: pygame.Surface, camera_x: int, camera_y: int, animation):
         """Render a melee sweep animation."""
@@ -396,6 +440,70 @@ class CombatSystem:
         # Draw fist (circle representing knuckles)
         pygame.draw.circle(screen, (210, 180, 140), (int(end_x), int(end_y)), 6)  # Flesh color
         pygame.draw.circle(screen, (150, 120, 80), (int(end_x), int(end_y)), 6, 2)  # Darker outline
+    
+    def render_power_pulse(self, screen: pygame.Surface, camera_x: int, camera_y: int, animation):
+        """Render a Power Pulse spell effect."""
+        center_x = int(animation['center'][0] + camera_x)
+        center_y = int(animation['center'][1] + camera_y)
+        
+        progress = 1.0 - (animation['lifetime'] / animation['max_lifetime'])
+        max_radius = animation['radius']
+        
+        # Expanding ring effect
+        current_radius = int(max_radius * progress)
+        
+        # Multiple rings for dramatic effect
+        for i in range(3):
+            ring_radius = current_radius + i * 10
+            alpha = int(255 * (1.0 - progress) * (1.0 - i * 0.3))
+            
+            if ring_radius > 0 and alpha > 0:
+                color = (255, 100, 255)  # Magenta color
+                # Draw outer ring
+                pygame.draw.circle(screen, color, (center_x, center_y), ring_radius, 3)
+                # Draw inner filled area with transparency effect
+                if i == 0 and ring_radius > 5:
+                    pygame.draw.circle(screen, color, (center_x, center_y), ring_radius - 2, 1)
+    
+    def apply_knockback(self, target, attack_angle: float, knockback_distance: float, level):
+        """Apply knockback effect to target."""
+        if knockback_distance <= 0:
+            return
+        
+        # Calculate knockback direction (same as attack direction)
+        knockback_x = math.cos(attack_angle) * knockback_distance
+        knockback_y = math.sin(attack_angle) * knockback_distance
+        
+        # New position after knockback
+        new_x = target.position[0] + knockback_x
+        new_y = target.position[1] + knockback_y
+        
+        # Check for wall collisions
+        tile_x = int(new_x // level.tile_size)
+        tile_y = int(new_y // level.tile_size)
+        
+        # Ensure within level bounds
+        if (0 <= tile_x < level.width and 0 <= tile_y < level.height and 
+            level.tiles[tile_y][tile_x].tile_type != "wall"):
+            # No wall collision, apply full knockback
+            target.position[0] = new_x
+            target.position[1] = new_y
+        else:
+            # Wall collision, apply partial knockback or stop at wall
+            # Try smaller knockback increments until we find a valid position
+            for distance_fraction in [0.5, 0.25, 0.1]:
+                test_x = target.position[0] + knockback_x * distance_fraction
+                test_y = target.position[1] + knockback_y * distance_fraction
+                test_tile_x = int(test_x // level.tile_size)
+                test_tile_y = int(test_y // level.tile_size)
+                
+                if (0 <= test_tile_x < level.width and 0 <= test_tile_y < level.height and 
+                    level.tiles[test_tile_y][test_tile_x].tile_type != "wall"):
+                    target.position[0] = test_x
+                    target.position[1] = test_y
+                    break
+        
+        print(f"Applied knockback to {getattr(target, 'enemy_type', 'target')}!")
 
 def calculate_damage(base_damage: int, level: int, damage_type: str = "normal") -> int:
     """Calculate final damage based on various factors."""

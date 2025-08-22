@@ -14,6 +14,7 @@ class ItemType(Enum):
     MELEE_WEAPON = "melee_weapon"
     ENCHANTMENT = "enchantment"  
     SPELL = "spell"
+    HEALTH = "health"
 
 class MeleeWeaponType(Enum):
     """Types of melee weapons."""
@@ -83,13 +84,14 @@ class MeleeWeapon(Item):
             },
             MeleeWeaponType.MACE: {
                 "name": "Mace",
-                "description": "Short range, knockback, mid damage",
+                "description": "Good range, knockback, mid damage",
                 "color": (128, 128, 128),  # Gray
                 "damage_multiplier": 1.2,
-                "range_multiplier": 0.8,
+                "range_multiplier": 1.1,  # Increased range for better collision
                 "attack_arc": 110,
                 "attack_speed": 0.9,
                 "knockback": True,
+                "knockback_distance": 64,  # One tile distance
                 "shape": "mace"
             }
         }
@@ -102,6 +104,7 @@ class MeleeWeapon(Item):
         self.attack_arc = data["attack_arc"]
         self.attack_speed = data["attack_speed"]
         self.knockback = data.get("knockback", False)
+        self.knockback_distance = data.get("knockback_distance", 0)
         self.shape = data["shape"]
     
     def get_sprite_data(self) -> Dict:
@@ -211,6 +214,39 @@ class Spell(Item):
         """Use the spell, setting cooldown."""
         self.last_used = current_time
 
+class HealthItem(Item):
+    """Health items that heal the player when picked up."""
+    
+    def __init__(self, heal_percentage: float = None):
+        if heal_percentage is None:
+            # Random heal between 5-12% as requested
+            heal_percentage = random.uniform(0.05, 0.12)
+        
+        self.heal_percentage = heal_percentage
+        heal_percent_display = int(heal_percentage * 100)
+        
+        super().__init__(
+            ItemType.HEALTH, 
+            "Health Pack", 
+            f"Heals {heal_percent_display}% of max health",
+            (100, 255, 100)  # Green color as requested
+        )
+        
+    def get_sprite_data(self) -> Dict:
+        """Get data for health item sprite generation."""
+        return {
+            "color": self.color,
+            "size": self.size,
+            "shape": "cross"  # + symbol
+        }
+    
+    def use_on_player(self, player) -> bool:
+        """Heal the player and return True if healing occurred."""
+        old_health = player.current_health
+        heal_amount = player.max_health * self.heal_percentage
+        player.heal(heal_amount)
+        return player.current_health > old_health
+
 class ItemManager:
     """Manages item spawning, pickup, and inventory."""
     
@@ -258,6 +294,8 @@ class ItemManager:
         elif item_type == ItemType.SPELL:
             spell_type = random.choice(list(SpellType))
             return Spell(spell_type)
+        elif item_type == ItemType.HEALTH:
+            return HealthItem()
     
     def check_item_pickup(self, player_pos: Tuple[float, float]) -> Optional[Item]:
         """Check if player is near an item to pick up."""
@@ -278,6 +316,32 @@ class ItemManager:
             self.items_on_ground.remove(item)
             return True
         return False
+    
+    def drop_health_item(self, position: Tuple[float, float], heal_percentage: float = None):
+        """Drop a health item at the specified position."""
+        health_item = HealthItem(heal_percentage)
+        health_item.position = position
+        self.items_on_ground.append(health_item)
+        
+    def drop_enemy_loot(self, enemy_position: Tuple[float, float], is_boss: bool = False):
+        """Drop health items when enemy dies."""
+        if is_boss:
+            # Bosses drop 2-4 health items as requested
+            num_drops = random.randint(2, 4)
+            for i in range(num_drops):
+                # Spread drops around boss position
+                offset_x = random.uniform(-40, 40)
+                offset_y = random.uniform(-40, 40)
+                drop_pos = (enemy_position[0] + offset_x, enemy_position[1] + offset_y)
+                self.drop_health_item(drop_pos)
+        else:
+            # Regular enemies have a chance to drop 1 health item
+            if random.random() < 0.4:  # 40% chance to drop health
+                # Small random offset from enemy position
+                offset_x = random.uniform(-20, 20)
+                offset_y = random.uniform(-20, 20)
+                drop_pos = (enemy_position[0] + offset_x, enemy_position[1] + offset_y)
+                self.drop_health_item(drop_pos)
     
     def drop_item(self, item: Item, position: Tuple[float, float]):
         """Drop an item at the specified position."""
