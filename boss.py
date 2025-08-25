@@ -29,6 +29,7 @@ class Boss(Enemy):
         # Override with boss stats
         self.setup_boss_stats()
         self.setup_boss_abilities()
+        self.setup_appearance()
         
         # Boss-specific properties
         self.is_boss = True
@@ -41,14 +42,20 @@ class Boss(Enemy):
         print(f"Created level {level} boss: {self.boss_type} with {self.current_health} HP")
     
     def get_boss_type(self, level: int) -> str:
-        """Determine boss type based on level."""
-        if level == 10:
+        """Determine boss type based on level with fair distribution."""
+        # Shadow Lord is the ultimate boss for higher levels
+        if level >= 10 and level % 5 == 0:  # Every 5th level starting from 10
             return "shadow_lord"
-        elif level % 3 == 0:  # Every 3rd level gets a special boss
-            boss_types = ["flame_berserker", "ice_mage", "lightning_striker"]
-            return boss_types[(level // 3 - 1) % len(boss_types)]
-        else:
-            return "elite_guardian"
+        
+        # All other levels get a random selection from the special boss types
+        boss_types = ["flame_berserker", "ice_mage", "lightning_striker"]
+        
+        # Use level as seed for consistent but varied boss selection per level
+        random.seed(level)
+        selected_boss = random.choice(boss_types)
+        random.seed()  # Reset seed for other random operations
+        
+        return selected_boss
     
     def setup_boss_stats(self):
         """Set up enhanced boss stats."""
@@ -104,14 +111,13 @@ class Boss(Enemy):
     def setup_appearance(self):
         """Set up boss visual appearance."""
         boss_colors = {
-            "elite_guardian": (150, 50, 50),      # Dark red
             "flame_berserker": (255, 100, 0),    # Orange-red
             "ice_mage": (100, 200, 255),         # Light blue
             "lightning_striker": (255, 255, 100), # Yellow
             "shadow_lord": (80, 0, 150)          # Dark purple
         }
         
-        self.color = boss_colors.get(self.boss_type, (150, 50, 50))
+        self.color = boss_colors.get(self.boss_type, (255, 100, 0))  # Default to flame_berserker color
         self.outline_color = (255, 255, 255)
     
     def update(self, dt: float, player, level, can_see_player: bool):
