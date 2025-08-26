@@ -49,7 +49,9 @@ class Boss(Enemy):
         
         # All other levels get a random selection from the special boss types
         boss_types = ["flame_berserker", "ice_mage", "lightning_striker"]
-        
+
+        if random.random() < 0.4:
+            return "elite_guardian"
         # Use level as seed for consistent but varied boss selection per level
         random.seed(level)
         selected_boss = random.choice(boss_types)
@@ -65,11 +67,14 @@ class Boss(Enemy):
         
         # Special boss multipliers
         if self.boss_type == "shadow_lord":
-            health_multiplier *= 2.0
-            damage_multiplier *= 1.8
+            health_multiplier *= 3.0
+            damage_multiplier *= 2.1
         elif self.boss_type in ["flame_berserker", "ice_mage", "lightning_striker"]:
+            health_multiplier *= 2.1
+            damage_multiplier *= 1.8
+        else:
             health_multiplier *= 1.5
-            damage_multiplier *= 1.3
+            damage_multiplier *= 1.6
         
         # Apply multipliers
         self.max_health = int(self.max_health * health_multiplier)
@@ -114,7 +119,8 @@ class Boss(Enemy):
             "flame_berserker": (255, 100, 0),    # Orange-red
             "ice_mage": (100, 200, 255),         # Light blue
             "lightning_striker": (255, 255, 100), # Yellow
-            "shadow_lord": (80, 0, 150)          # Dark purple
+            "shadow_lord": (80, 0, 150),      # Dark purple
+            "elite_guardian": (191, 69, 101)  #IDK
         }
         
         self.color = boss_colors.get(self.boss_type, (255, 100, 0))  # Default to flame_berserker color
@@ -141,9 +147,9 @@ class Boss(Enemy):
     def enrage(self):
         """Activate enrage mode - increased speed and attack rate."""
         self.enraged = True
-        self.speed *= 2.0  # Even faster when enraged (was 1.5)
-        self.attack_cooldown *= 0.5  # Much faster attacks (was 0.7)
-        self.special_attack_cooldown *= 0.6  # Faster specials (was 0.8)
+        self.speed *= 2.5  # Even faster when enraged (was 1.5)
+        self.attack_cooldown *= 0.3  # Much faster attacks (was 0.7)
+        self.special_attack_cooldown *= 0.5  # Faster specials (was 0.8)
         print(f"Boss {self.boss_type} is now ENRAGED! Max speed and aggression!")
     
     def use_special_ability(self, player, current_time: float, level):

@@ -204,11 +204,11 @@ class Level:
         
         # Spawn enemies with new types including a mobile ranged attacker
         spawn_attempts = 0
-        max_spawn_attempts = 200
+        max_spawn_attempts = 420
         
         # Define enemy types including new types
-        enemy_types = ["basic", "fast", "heavy", "mobile_ranged", "juggernaut", "archer", "scout", "guardian"]
-        enemy_weights = [3, 3, 2, 1, 1, 2, 2, 2]  # Increased fast enemy weight for more aggressive gameplay
+        enemy_types = ["basic", "fast", "heavy", "mobile_ranged", "juggernaut", "archer", "scout", "guardian", 'assassin']
+        enemy_weights = [3, 4, 2, 3, 1, 2, 2, 2,3]  # Increased fast enemy weight for more aggressive gameplay
         
         # Add new ricochet enemy type for higher levels
         if self.player_level >= 4:
@@ -232,9 +232,10 @@ class Level:
                 (world_y - self.spawn_position[1])**2
             )
             
-            if spawn_distance > 100:  # Minimum distance from spawn
-                enemy = create_enemy((world_x, world_y), self.player_level)
-                self.enemies.append(enemy)
+            if spawn_distance > 80:  # Minimum distance from spawn
+                for i in range(3):
+                    enemy = create_enemy((world_x, world_y), self.player_level)
+                    self.enemies.append(enemy)
     
     def get_spawn_position(self) -> Tuple[float, float]:
         """Get the player spawn position."""

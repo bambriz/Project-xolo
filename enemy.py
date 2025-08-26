@@ -1057,13 +1057,21 @@ class Enemy:
 
 def create_enemy(position: Tuple[float, float], player_level: int) -> Enemy:
     """Factory function to create a random enemy appropriate for the player level."""
-    enemy_types = ["basic", "fast", "heavy"]
+    # Define enemy types including new types
+    enemy_types = ["basic", "fast", "heavy", "mobile_ranged", "juggernaut", "archer", "scout", "guardian", 'assassin']
+    enemy_weights = [3, 4, 2, 3, 1, 2, 2, 2, 3]  # Increased fast enemy weight for more aggressive gameplay
+
+    # Add new ricochet enemy type for higher levels
+    if player_level >= 4:
+        enemy_types.append("ricochet")
+        enemy_weights.append(1)  # Rare spawn
     
     # Add ranged enemies at higher levels
     if player_level >= 2:
         enemy_types.append("ranged")
-    
-    enemy_type = random.choice(enemy_types)
+        enemy_weights.append(3)
+    enemy_type = random.choices(enemy_types, weights=enemy_weights, k=1)[0]
+    # enemy_type = random.choice(enemy_types)
     return Enemy(position, enemy_type, player_level)
 
 # Add the missing method to Enemy class
